@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context="com.example.ijkplayersample.VideoActivity">
+
+    <tv.danmaku.ijk.media.example.widget.media.IjkVideoView
+        android:id="@+id/v_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+    <ProgressBar
+        android:id="@+id/volume_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:max="100"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:alpha="0.4"/>
+    <TableLayout
+        android:id="@+id/hud_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center"
+        android:background="@color/ijk_transparent_dark"
+        android:padding="8dp"
+        android:alpha="1.0"/>
+
+    <LinearLayout
+        android:id="@+id/ll_log"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/hud_view"
+        android:layout_marginTop="10dp"
+        android:background="#80000000"
+        android:maxWidth="480dp"
+        android:paddingLeft="23dp"
+        android:paddingTop="10dp"
+        android:paddingRight="13dp"
+        android:paddingBottom="10dp"
+        android:orientation="vertical"
+        android:layout_alignParentLeft="true">
+        <TextView
+            android:id="@+id/tv_log"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#ffffffff"
+            android:scrollbars="vertical"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+</android.support.constraint.ConstraintLayout>
