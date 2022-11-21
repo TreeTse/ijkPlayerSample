@@ -30,6 +30,7 @@ public interface IMediaController {
 
     void setEnabled(boolean enabled);
 
+    /*** add: IJKMediaController instead of MediaController ***/
     void setMediaPlayer(IJKMediaController.MediaPlayerControl player);
 
     void show(int timeout);
@@ -41,5 +42,6 @@ public interface IMediaController {
     //----------
     void showOnce(View view);
 
+    /*** add: dispatchKeyEvent ***/
     boolean dispatchKeyEvent(KeyEvent event);
 }

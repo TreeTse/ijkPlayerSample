@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
 }
+apply plugin: 'kotlin-android'
 
 android {
     compileSdkVersion 28
@@ -16,6 +17,8 @@ android {
             cmake {
                 version "3.18.1"
                 abiFilters 'armeabi-v7a', 'arm64-v8a'
+                arguments "-DANDROID_STL=c++_shared"
+                //arguments "-DANDROID_ARM_MODE=arm", "-DANDROID_STL=c++_shared"//add:ASan
             }
         }
     }
@@ -45,4 +48,11 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
     implementation 'com.google.android.exoplayer:exoplayer:r1.5.11'
+    implementation 'com.google.code.gson:gson:2.10'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    //add: MemoryLeakDetector
+    //implementation 'com.github.bytedance:memory-leak-detector:0.2.1'
+}
+repositories {
+    mavenCentral()
 }

@@ -39,7 +39,7 @@ typedef struct J4AC_android_media_MediaCodec {
     jmethodID method_configure;
     jmethodID method_getOutputFormat;
     jmethodID method_getInputBuffers;
-    jmethodID method_getOutputBuffer;
+    jmethodID method_getOutputBuffer;//add:implement getOutputBuffer
     jmethodID method_dequeueInputBuffer;
     jmethodID method_queueInputBuffer;
     jmethodID method_dequeueOutputBuffer;
@@ -423,6 +423,9 @@ fail:
     return ret_object;
 }
 
+/***********************************
+ * add:implement getOutputBuffer
+ */
 jobject J4AC_android_media_MediaCodec__getOutputBuffer(JNIEnv *env, jobject thiz, jint index)
 {
     return (*env)->CallObjectMethod(env, thiz, class_J4AC_android_media_MediaCodec.method_getOutputBuffer, index);
@@ -457,6 +460,7 @@ fail:
     J4A_DeleteLocalRef__p(env, &local_object);
     return ret_object;
 }
+/******** add:implement getOutputBuffer *********/
 
 jint J4AC_android_media_MediaCodec__dequeueInputBuffer(JNIEnv *env, jobject thiz, jlong timeoutUs)
 {
@@ -609,6 +613,7 @@ int J4A_loadClass__J4AC_android_media_MediaCodec(JNIEnv *env)
     if (class_J4AC_android_media_MediaCodec.method_getInputBuffers == NULL)
         goto fail;
 
+    /*add:implement getOutputBuffer*/
     class_id = class_J4AC_android_media_MediaCodec.id;
     name     = "getOutputBuffer";
     sign     = "(I)Ljava/nio/ByteBuffer;";

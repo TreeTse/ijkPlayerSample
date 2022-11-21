@@ -229,6 +229,7 @@ fail:
     return write_ret;
 }
 
+/***** add:implement getOutputBuffer ******/
 static uint8_t *SDL_AMediaCodecJava_getOutputBuffer(SDL_AMediaCodec* acodec, size_t idx)
 {
     AMCTRACE("%s: %d", __func__, (int)idx);
@@ -405,7 +406,7 @@ static SDL_AMediaCodec* SDL_AMediaCodecJava_init(JNIEnv *env, jobject android_me
     acodec->func_flush                  = SDL_AMediaCodecJava_flush;
 
     acodec->func_writeInputData         = SDL_AMediaCodecJava_writeInputData;
-    acodec->func_getOutputBuffer        = SDL_AMediaCodecJava_getOutputBuffer;
+    acodec->func_getOutputBuffer        = SDL_AMediaCodecJava_getOutputBuffer;//add:implement getOutputBuffer
 
     acodec->func_dequeueInputBuffer     = SDL_AMediaCodecJava_dequeueInputBuffer;
     acodec->func_queueInputBuffer       = SDL_AMediaCodecJava_queueInputBuffer;

@@ -262,7 +262,7 @@ public class IjkExoMediaPlayer extends AbstractMediaPlayer {
     @Override
     public MediaInfo getMediaInfo() {
         // TODO: add other info
-        // diy MediaInfo
+        // add: add other info
         if(mMediaInfo == null) {
             MediaInfo module = new MediaInfo();
             module.mVideoDecoder = "android";

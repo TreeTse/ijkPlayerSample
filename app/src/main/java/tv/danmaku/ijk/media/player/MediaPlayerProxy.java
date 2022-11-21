@@ -44,7 +44,6 @@ public class MediaPlayerProxy implements IMediaPlayer {
         return mBackEndMediaPlayer;
     }
 
-
     @Override
     public void setDisplay(SurfaceHolder sh) {
         mBackEndMediaPlayer.setDisplay(sh);
@@ -340,6 +339,7 @@ public class MediaPlayerProxy implements IMediaPlayer {
         return mBackEndMediaPlayer.isLooping();
     }
 
+    // add: selectTrack
     public void selectTrack(int track) { }
     public int getSelectedTrack(int trackType) { return -1; }
 }

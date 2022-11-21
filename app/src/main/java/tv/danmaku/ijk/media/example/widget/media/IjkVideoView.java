@@ -22,7 +22,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.media.AudioManager;
-import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build;
@@ -47,8 +46,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-
-
 import tv.danmaku.ijk.media.exo.IjkExoMediaPlayer;
 import tv.danmaku.ijk.media.player.AndroidMediaPlayer;
 import tv.danmaku.ijk.media.player.IMediaPlayer;
@@ -60,10 +57,13 @@ import tv.danmaku.ijk.media.player.misc.IMediaFormat;
 import tv.danmaku.ijk.media.player.misc.ITrackInfo;
 import tv.danmaku.ijk.media.player.misc.IjkMediaFormat;
 import com.example.ijkplayersample.R;
+import com.wisecloud.jni.NativeJni;
+import com.wisecloud.jni.PlayInfo;
+import com.wisecloud.jni.RangerBeanCallback;
 import tv.danmaku.ijk.media.example.application.Settings;
 import tv.danmaku.ijk.media.example.services.MediaPlayerService;
-import static tv.danmaku.ijk.media.player.misc.ITrackInfo.MEDIA_TRACK_TYPE_AUDIO;
 
+/**** add: IJKMediaController instead of MediaController ***/
 public class IjkVideoView extends FrameLayout implements IJKMediaController.MediaPlayerControl {
     private String TAG = "IjkVideoView";
     // settable by the client
@@ -133,7 +133,8 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
     private TextView subtitleDisplay;
 
     private boolean mIsEnableHw = false;
-    private TextView mTvLog;
+    private TextView mTvLog;//add: view log
+    private int mTouchCount = 0;
 
     public IjkVideoView(Context context) {
         super(context);
@@ -169,6 +170,7 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
         mIsEnableHw = isEnableHw;
     }
 
+    /*** add: view log ***/
     public void setTextView(TextView tv) {
         mTvLog = tv;
     }
@@ -179,6 +181,7 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
         tv.append(sysTimeStr);
         tv.append(content + "\n");
     }
+    /*******************/
 
     private void initVideoView(Context context) {
         mAppContext = context.getApplicationContext();
@@ -268,9 +271,8 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
         }
     }
 
-    public void setHudView(TableLayout tableLayout, MediaMetadataRetriever mmr) {
+    public void setHudView(TableLayout tableLayout) {
         mHudViewHolder = new InfoHudViewHolder(getContext(), tableLayout);
-        mHudViewHolder.setMediaMetadataRetriever(mmr);  //test
     }
 
     /**
@@ -379,6 +381,7 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
             mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
             mMediaPlayer.setScreenOnWhilePlaying(true);
             mPrepareStartTime = System.currentTimeMillis();
+            addLogTv(mTvLog, "preparing");
             mMediaPlayer.prepareAsync();
             if (mHudViewHolder != null)
                 mHudViewHolder.setMediaPlayer(mMediaPlayer);
@@ -388,7 +391,6 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
             // we don't set the target state here either, but preserve the
             // target state that was there before.
             mCurrentState = STATE_PREPARING;
-            addLogTv(mTvLog, "preparing");
             attachMediaController();
         } catch (IOException ex) {
             Log.w(TAG, "Unable to open content: " + mUri, ex);
@@ -449,6 +451,7 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
             mHudViewHolder.updateLoadCost(mPrepareEndTime - mPrepareStartTime);
             mCurrentState = STATE_PREPARED;
             addLogTv(mTvLog, "prepared");
+            NativeJni.getJni().mediaPlayerEvent(1, "onPrepared", 0,0,0);//add: ranger mediaPlayerEvent
             // Get the capabilities of the player for this stream
             // REMOVED: Metadata
 
@@ -606,9 +609,9 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
                                 .setPositiveButton(R.string.VideoView_error_button,
                                         new DialogInterface.OnClickListener() {
                                             public void onClick(DialogInterface dialog, int whichButton) {
-                                            /* If we get here, there is no onError listener, so
-                                             * at least inform them that the video is over.
-                                             */
+                                                /* If we get here, there is no onError listener, so
+                                                 * at least inform them that the video is over.
+                                                 */
                                                 if (mOnCompletionListener != null) {
                                                     mOnCompletionListener.onCompletion(mMediaPlayer);
                                                 }
@@ -779,6 +782,28 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
         if (isInPlaybackState() && mMediaController != null) {
             toggleMediaControlsVisiblity();
         }
+        /*** add: selectTrack on phone ***/
+        if (ev.getAction() == MotionEvent.ACTION_DOWN) {
+            mTouchCount++;
+            if(mTouchCount == 2) {
+                mTouchCount = 0;
+                int audioTrackSize = 0;
+                ITrackInfo trackInfo[] = mMediaPlayer.getTrackInfo();
+                for(int i = 0; i < trackInfo.length; i++) {
+                    if(trackInfo[i].getTrackType() == ITrackInfo.MEDIA_TRACK_TYPE_AUDIO)
+                        audioTrackSize++;
+                }
+                int curAudioTrack = mMediaPlayer.getSelectedTrack(ITrackInfo.MEDIA_TRACK_TYPE_AUDIO);
+                if(curAudioTrack >= audioTrackSize) {
+                    curAudioTrack = 1;
+                } else {
+                    curAudioTrack++;
+                }
+                mMediaPlayer.selectTrack(curAudioTrack);
+                return true;
+            }
+        }
+        /***********************/
         return false;
     }
 
@@ -831,10 +856,10 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
                 int audioTrackSize = 0;
                 ITrackInfo trackInfo[] = mMediaPlayer.getTrackInfo();
                 for(int i = 0; i < trackInfo.length; i++) {
-                    if(trackInfo[i].getTrackType() == MEDIA_TRACK_TYPE_AUDIO)
+                    if(trackInfo[i].getTrackType() == ITrackInfo.MEDIA_TRACK_TYPE_AUDIO)
                         audioTrackSize++;
                 }
-                int curAudioTrack = mMediaPlayer.getSelectedTrack(MEDIA_TRACK_TYPE_AUDIO);
+                int curAudioTrack = mMediaPlayer.getSelectedTrack(ITrackInfo.MEDIA_TRACK_TYPE_AUDIO);
                 if(curAudioTrack >= audioTrackSize) {
                     curAudioTrack = 1;
                 } else {
@@ -842,12 +867,33 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
                 }
                 mMediaPlayer.selectTrack(curAudioTrack);
                 return true;
+            } else if (keyCode == KeyEvent.KEYCODE_5) {//add: ranger switch program
+                switchRangerStream();
+            } else if (keyCode == KeyEvent.KEYCODE_3) {
+                NativeJni.getJni().getRangerVersion();
+            } else if (keyCode == KeyEvent.KEYCODE_4) {
+                RangerBeanCallback rangerBeanCallback = new RangerBeanCallback() {
+                    @Override
+                    public void callback(PlayInfo result) {
+                        if(result == null) return;
+                    }
+                };
+                NativeJni.getJni().getPullStreamState(1, "DestaquesdaCopadoNordeste_720p", rangerBeanCallback);
+            } else if (keyCode == KeyEvent.KEYCODE_1) {
+                NativeJni.getJni().switchQuality(1, "DestaquesdaCopadoNordeste_720p", "720p");
             } else {
                 toggleMediaControlsVisiblity();
             }
         }
 
         return super.onKeyDown(keyCode, event);
+    }
+
+    private void switchRangerStream() {//add: ranger switch program
+        NativeJni.getJni().pausePullStream(1, "DestaquesdaCopadoNordeste_720p");
+        NativeJni.getJni().stopPullStream(1, "DestaquesdaCopadoNordeste_720p");
+        String programInfo_json = "{\"app_ctx\":\"Live\",\"buss\":\"live\",\"delay\":15000000000,\"desc\":\"TV Brasil  Esperança\",\"lang\":\"\",\"program_code\":\"TVBrasil\",\"quality\":\"480p\",\"sources\":[{\"auth\":\"session_id=bjWnAlpn0UWf&auth_id=70157234_com.interactive.brasiliptv&client_ip=218.18.4.86&ctrl_type=stb&app_id=com.interactive.brasiliptv&group=d831e466ea45a5daf6890805be1c263e&spared_addr=&media_encrypted=0&app_ver=53800&cdn_type=1&main_addr=lmslb.hkdfalk.com&user_id=70157234&dev_id=8e.08-22.03-11512293&expired=1667977384&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=87369E43FFA9AB2F3800D4E96E606619\",\"format\":\"\",\"id\":\"gaoq_slb_test\",\"id_code\":\"34ebf544d6a0008afa72f17b70333221\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=4D127A13-C38C-43FA-9100-453FD2B19A93&expired=1668565934&token=C2624A95142C768D934B9EDF0222EBB2\",\"main_addr\":\"lmslb.hkdfalk.com\",\"main_addr_code\":\"619e08315152e15c9af7575ab6ddbd6e9dd65661848a69ee7d542cf1f2377b24\",\"media_code\":\"4D127A13-C38C-43FA-9100-453FD2B19A93\",\"priority\":1,\"quality\":\"480p\",\"rule_id_code\":\"f436108bbb4381b302eeebd380a8e0f5\",\"spared_addr\":\"\",\"spared_addr_code\":\"\",\"tag\":\"1\",\"weight\":0}],\"start\":0,\"timeout\":12000000000}";
+        NativeJni.getJni().prepareProgram(1, "TVBrasil", programInfo_json);
     }
 
     private void toggleMediaControlsVisiblity() {
@@ -861,9 +907,9 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
     @Override
     public void start() {
         if (isInPlaybackState()) {
+            addLogTv(mTvLog, "start");
             mMediaPlayer.start();
             mCurrentState = STATE_PLAYING;
-            addLogTv(mTvLog, "start");
         }
         mTargetState = STATE_PLAYING;
     }
@@ -872,9 +918,9 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
     public void pause() {
         if (isInPlaybackState()) {
             if (mMediaPlayer.isPlaying()) {
+                addLogTv(mTvLog,"pause");
                 mMediaPlayer.pause();
                 mCurrentState = STATE_PAUSED;
-                addLogTv(mTvLog,"pause");
             }
         }
         mTargetState = STATE_PAUSED;
@@ -1097,8 +1143,14 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
                 if (mUri != null) {
                     ijkMediaPlayer = new IjkMediaPlayer();
                     ijkMediaPlayer.native_setLogLevel(IjkMediaPlayer.IJK_LOG_DEBUG);
-                    //ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames",100);
-                    //ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", 25*1024);
+                    /*ijkMediaPlayer.setOnNativeInvokeListener(new IjkMediaPlayer.OnNativeInvokeListener() {//add:reconnect
+                        @Override
+                        public boolean onNativeInvoke(int i, Bundle bundle) {
+                            return true;
+                        }
+                    });*/
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames",500);//add: switch audio stream
+                    //ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", 200*1024);//add: buffer size
                     if (mManifestString != null) {
                         ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "iformat", "ijklas");
                         ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "find_stream_info", 0);
@@ -1106,6 +1158,8 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
                     }
                     if (mIsEnableHw) {
                         ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec", 1);
+                        ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", 1);
+                        ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", 1);// add: all-videos
                         if (mSettings.getUsingMediaCodecAutoRotate()) {
                             ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", 1);
                         } else {
@@ -1187,7 +1241,7 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
             return;
 
         int selectedVideoTrack = MediaPlayerCompat.getSelectedTrack(mMediaPlayer, ITrackInfo.MEDIA_TRACK_TYPE_VIDEO);
-        int selectedAudioTrack = MediaPlayerCompat.getSelectedTrack(mMediaPlayer, MEDIA_TRACK_TYPE_AUDIO);
+        int selectedAudioTrack = MediaPlayerCompat.getSelectedTrack(mMediaPlayer, ITrackInfo.MEDIA_TRACK_TYPE_AUDIO);
         int selectedSubtitleTrack = MediaPlayerCompat.getSelectedTrack(mMediaPlayer, ITrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT);
 
         TableLayoutBinder builder = new TableLayoutBinder(getContext());
@@ -1228,7 +1282,7 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
                             builder.appendRow2(R.string.mi_frame_rate, mediaFormat.getString(IjkMediaFormat.KEY_IJK_FRAME_RATE_UI));
                             builder.appendRow2(R.string.mi_bit_rate, mediaFormat.getString(IjkMediaFormat.KEY_IJK_BIT_RATE_UI));
                             break;
-                        case MEDIA_TRACK_TYPE_AUDIO:
+                        case ITrackInfo.MEDIA_TRACK_TYPE_AUDIO:
                             builder.appendRow2(R.string.mi_codec, mediaFormat.getString(IjkMediaFormat.KEY_IJK_CODEC_LONG_NAME_UI));
                             builder.appendRow2(R.string.mi_profile_level, mediaFormat.getString(IjkMediaFormat.KEY_IJK_CODEC_PROFILE_LEVEL_UI));
                             builder.appendRow2(R.string.mi_sample_rate, mediaFormat.getString(IjkMediaFormat.KEY_IJK_SAMPLE_RATE_UI));
@@ -1287,7 +1341,7 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
         switch (type) {
             case ITrackInfo.MEDIA_TRACK_TYPE_VIDEO:
                 return context.getString(R.string.TrackType_video);
-            case MEDIA_TRACK_TYPE_AUDIO:
+            case ITrackInfo.MEDIA_TRACK_TYPE_AUDIO:
                 return context.getString(R.string.TrackType_audio);
             case ITrackInfo.MEDIA_TRACK_TYPE_SUBTITLE:
                 return context.getString(R.string.TrackType_subtitle);

@@ -133,6 +133,7 @@ static SDL_AMediaCodec *create_codec_l(JNIEnv *env, IJKFF_Pipenode *node)
         acodec = SDL_AMediaCodecDummy_create();
     } else {
         acodec = SDL_AMediaCodecJava_createByCodecName(env, mcc->codec_name);
+
         if (acodec) {
             strncpy(opaque->acodec_name, mcc->codec_name, sizeof(opaque->acodec_name) / sizeof(*opaque->acodec_name));
             opaque->acodec_name[sizeof(opaque->acodec_name) / sizeof(*opaque->acodec_name) - 1] = 0;
@@ -323,7 +324,7 @@ static int reconfigure_codec_l(JNIEnv *env, IJKFF_Pipenode *node, jobject new_su
         assert(opaque->weak_vout);
     }
 
-    //if buffer output is used,the surface should set null
+    //TreeTse:if buffer output is used,the surface should set null
     amc_ret = SDL_AMediaCodec_configure_surface(env, opaque->acodec, opaque->input_aformat, opaque->jsurface, NULL, 0);
     if (amc_ret != SDL_AMEDIA_OK) {
         ALOGE("%s:configure_surface: failed\n", __func__);
@@ -490,6 +491,9 @@ static int feed_input_buffer2(JNIEnv *env, IJKFF_Pipenode *node, int64_t timeUs,
                 ret = -1;
                 goto fail;
             }
+            /***** add:watch pts and pos ******/
+            //double pktpts = pkt.pts * av_q2d(is->ic->streams[pkt.stream_index]->time_base);
+            //av_log(NULL, AV_LOG_INFO, "seek pts of index:%d, pts:%lf, pos:%"PRId64"\n", pkt.stream_index, pktpts, pkt.pos);
             if (ffp_is_flush_packet(&pkt) || opaque->acodec_flush_request) {
                 // request flush before lock, or never get mutex
                 opaque->acodec_flush_request = true;
@@ -1079,6 +1083,7 @@ static void sort_amc_buf_out(AMC_Buf_Out *buf_out, int size) {
     }
 }
 
+/* add:save rgb file */
 int saveRgbFile(uint8_t* yuv_buf, int width, int height, int index) {
     int fd = -1;
     int ret;
@@ -1310,11 +1315,15 @@ static int drain_output_buffer_l(JNIEnv *env, IJKFF_Pipenode *node, int64_t time
                 }
             }
         } else {
+            /********************************************
+             *  save outputBuffer to file
+             */
             if(index == -1) {
-                uint8_t *buf = opaque->acodec->func_getOutputBuffer(opaque->acodec, output_buffer_index);
+                uint8_t *buf = NULL;
+                /*uint8_t *buf = opaque->acodec->func_getOutputBuffer(opaque->acodec, output_buffer_index);
                 if(buf == NULL) {
                     av_log(NULL, AV_LOG_ERROR, "mediacodec getOutputBuffer error!\n");
-                }
+                }*/
                 if(buf != NULL) {
                     opaque->output_aformat = SDL_AMediaCodec_getOutputFormat(opaque->acodec);
                     int width        = 0;
@@ -1352,6 +1361,7 @@ static int drain_output_buffer_l(JNIEnv *env, IJKFF_Pipenode *node, int64_t time
                     }
                 }
             }
+            /**************************/
             ret = amc_fill_frame(node, frame, got_frame, output_buffer_index, SDL_AMediaCodec_getSerial(opaque->acodec), &bufferInfo);
         }
     }

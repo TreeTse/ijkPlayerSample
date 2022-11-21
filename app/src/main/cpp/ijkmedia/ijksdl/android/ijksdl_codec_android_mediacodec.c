@@ -162,6 +162,7 @@ ssize_t SDL_AMediaCodec_writeInputData(SDL_AMediaCodec* acodec, size_t idx, cons
     return acodec->func_writeInputData(acodec, idx, data, size);
 }
 
+/**** add:implement getOutputBuffer *******/
 uint8_t *SDL_AMediaCodecJava_getOutputBuffer(SDL_AMediaCodec* acodec, size_t idx)
 {
     assert(acodec->func_getOutputBuffer);

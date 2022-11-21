@@ -107,7 +107,6 @@
 #include "ff_ffplay_options.h"
 
 static AVPacket flush_pkt;
-volatile int audioTrack_switch = 0;
 
 #if CONFIG_AVFILTER
 // FFP_MERGE: opt_add_vfilter
@@ -116,6 +115,9 @@ volatile int audioTrack_switch = 0;
 #define IJKVERSION_GET_MAJOR(x)     ((x >> 16) & 0xFF)
 #define IJKVERSION_GET_MINOR(x)     ((x >>  8) & 0xFF)
 #define IJKVERSION_GET_MICRO(x)     ((x      ) & 0xFF)
+
+/*** add: exchange data ***/
+#define DATA_SWAP(lhs, rhs)  do { typeof(lhs) _temp = lhs; lhs = rhs; rhs = _temp; } while(false)
 
 #if CONFIG_AVFILTER
 static inline
@@ -662,14 +664,25 @@ static int decoder_decode_frame(FFPlayer *ffp, Decoder *d, AVFrame *frame, AVSub
             } else {
                 ret = packet_queue_get_or_buffering(ffp, d->queue, &pkt, &d->pkt_serial, &d->finished);
                 if(ret < 0)
-                    return -1;
+                    return -1;//add TODO: if ret < 0, the other packet queue how to deal with
                 //if (packet_queue_get_or_buffering(ffp, d->queue, &pkt, &d->pkt_serial, &d->finished) < 0)
                     //return -1;
                 else if(ret > 0) {
-                    packet_queue_del(&is->audio_switch[0].audioq);
-                    packet_queue_del(&is->audio_switch[1].audioq);
-                    packet_queue_del(&is->audio_switch[2].audioq);
-                    packet_queue_del(&is->audio_switch[3].audioq);
+                    /****** add: process other queues ********/
+                    bool is_audio_stream = pkt.stream_index != is->last_video_stream && pkt.stream_index != is->last_subtitle_stream;
+                    if(is_audio_stream && is->audio_stream_count - 1) {
+                        double pkt_pts = (double)(pkt.pts * av_q2d(is->ic->streams[pkt.stream_index]->time_base));
+                        //av_log(NULL, AV_LOG_INFO, "pts of p%d: %f, clock: %f\n", pkt.stream_index, pkt_pts, ffp_get_master_clock(is));
+                        for(int i = 0; i  < is->audio_stream_count - 1; i++) {
+                            if(is->audio_added[i].audioq.first_pkt) {
+                                double pkt_pts1 = (double)(is->audio_added[i].audioq.first_pkt->pkt.pts * av_q2d(is->ic->streams[is->audio_added[i].audio_stream]->time_base));
+                                //av_log(NULL, AV_LOG_INFO, "pts of p%d: %f\n", is->audio_added[i].audio_stream, pkt_pts1);
+                                if(pkt_pts1 < pkt_pts)
+                                    packet_queue_del(&is->audio_added[i].audioq);
+                            }
+                        }
+                    }
+                    /***********************************/
                 }
             }
         } while (d->queue->serial != d->pkt_serial);
@@ -925,7 +938,6 @@ static void video_image_display2(FFPlayer *ffp)
     Frame *sp = NULL;
 
     vp = frame_queue_peek_last(&is->pictq);
-    av_log(NULL, AV_LOG_INFO, "shtest: video: %lf\n", vp->pts);
     if (vp->bmp) {
         if (is->subtitle_st) {
             if (frame_queue_nb_remaining(&is->subpq) > 0) {
@@ -1049,12 +1061,23 @@ static void stream_close(FFPlayer *ffp)
     is->abort_request = 1;
     packet_queue_abort(&is->videoq);
     packet_queue_abort(&is->audioq);
+    /**** add: abort other queues ****/
+    for(int i = 0; i < is->audio_stream_count - 1; i++)
+        packet_queue_abort(&is->audio_added[i].audioq);
+    /******************/
     av_log(NULL, AV_LOG_DEBUG, "wait for read_tid\n");
     SDL_WaitThread(is->read_tid, NULL);
 
     /* close each stream */
     if (is->audio_stream >= 0)
         stream_component_close(ffp, is->audio_stream);
+    /**** add: destroy other auddec *****/
+    for(int i = 0; i < is->audio_stream_count - 1; i++) {
+        decoder_destroy(&is->audio_added[i].auddec);
+        is->audio_added[i].audio_st = NULL;
+        is->audio_added[i].audio_stream = -1;
+    }
+    /**********************/
     if (is->video_stream >= 0)
         stream_component_close(ffp, is->video_stream);
     if (is->subtitle_stream >= 0)
@@ -1067,6 +1090,10 @@ static void stream_close(FFPlayer *ffp)
 
     packet_queue_destroy(&is->videoq);
     packet_queue_destroy(&is->audioq);
+    /***** add: destroy other audioq ****/
+    for(int i = 0; i < is->audio_stream_count - 1; i++)
+        packet_queue_destroy(&is->audio_added[i].audioq);
+    /*********************/
     packet_queue_destroy(&is->subtitleq);
 
     /* free all pictures */
@@ -1100,6 +1127,12 @@ static void stream_close(FFPlayer *ffp)
         av_freep(&ffp->get_img_info->img_path);
         av_freep(&ffp->get_img_info);
     }
+    /*** add: release audio_added ***/
+    if(is->audio_added) {
+        free(is->audio_added);
+        is->audio_added = NULL;
+    }
+    /******************/
     av_free(is->filename);
     av_free(is);
     ffp->is = NULL;
@@ -2220,6 +2253,7 @@ static int decoder_start(Decoder *d, int (*fn)(void *), void *arg, const char *n
     return 0;
 }
 
+/***** save to png *****/
 bool saveToPng(AVFrame *frame, int width, int height, FFPlayer *ffp, int frameIndex) {
     VideoState *is = ffp->is;
     AVFrame *pFrameRGB;
@@ -2286,7 +2320,7 @@ bool saveToPng(AVFrame *frame, int width, int height, FFPlayer *ffp, int frameIn
     ret = avcodec_encode_video2(codec_ctx, &avpkt, pFrameRGB, &got_packet);
     if(ret >= 0 && got_packet > 0) {
         int fd;
-        char szFilename[32];
+        char szFilename[64];
         sprintf(szFilename, "/storage/emulated/0/frametmp/frame%d.png", frameIndex);
         fd = open(szFilename, O_RDWR | O_TRUNC | O_CREAT, 0600);
         if (fd < 0) {
@@ -2301,6 +2335,7 @@ bool saveToPng(AVFrame *frame, int width, int height, FFPlayer *ffp, int frameIn
     sws_freeContext(img_convert_ctx);
 }
 
+/**** save to yuv ****/
 bool saveToYuv(AVFrame *frame, int index) {
     FILE *pFile;
     char filename[50];
@@ -2380,7 +2415,8 @@ static int ffplay_video_thread(void *arg)
             goto the_end;
         if (!ret)
             continue;
-        #if 0    //save to yuv
+        //double target_frame_pts = (double)frame->pts * av_q2d(is->video_st->time_base);//add: save frames by timestamp
+        #if 0    //add:save frame to yuv
         frameIndex++;
         if(frameIndex == 50) {
             if(!saveToYuv(frame, frameIndex)) {
@@ -2388,93 +2424,12 @@ static int ffplay_video_thread(void *arg)
             }
         }
         #endif
-        #if 0    //save frame to png
+        #if 0    //add:save frame to png
         frameIndex++;
         if(frameIndex > 70 && frameIndex < 80) {
             if(!saveToPng(frame, is->viddec.avctx->width, is->viddec.avctx->height, ffp, frameIndex)) {
                 av_log(NULL, AV_LOG_ERROR, "saveToPng failed\n");
             }
-            #if 0 //code that has not yet been defined as a function
-            int width = is->viddec.avctx->width;
-            int height = is->viddec.avctx->height;
-            AVFrame *pFrameRGB;
-            pFrameRGB = av_frame_alloc();
-            if(pFrameRGB == NULL) {
-                av_log(NULL, AV_LOG_ERROR, "pFrameRGB malloc failed!\n");
-                return false;
-            }
-
-            int numBytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, width, height, 1);
-            uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
-            if(buffer == NULL) {
-                av_log(NULL, AV_LOG_ERROR, "av_image_get_buffer_size failed!\n");
-                return;
-            }
-            pFrameRGB->format = AV_PIX_FMT_RGB24;
-            pFrameRGB->width = width;
-            pFrameRGB->height = height;
-            int ret = av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize, buffer, AV_PIX_FMT_RGB24, width, height, 1);
-            if(ret < 0) {
-                av_log(NULL, AV_LOG_ERROR, "av_image_fill_arrays failed!\n");
-                return false;
-            }
-
-            struct SwsContext* img_convert_ctx;
-            img_convert_ctx = sws_getContext(width, height, frame->format,
-                width, height, AV_PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
-            if(img_convert_ctx == NULL) {
-                av_log(NULL, AV_LOG_ERROR, "sws_getContext failed!\n");
-                return false;
-            }
-            ret = sws_scale(img_convert_ctx,  (const uint8_t * const *)frame->data, (const int *)frame->linesize, 0, height,
-                    pFrameRGB->data, pFrameRGB->linesize);
-            if(ret <= 0) {
-                av_log(NULL, AV_LOG_ERROR, "sws_scale failed!\n");
-                return false;
-            }
-
-            AVCodec *image_codec = avcodec_find_encoder(AV_CODEC_ID_PNG);
-            if(!image_codec) {
-                av_log(NULL, AV_LOG_ERROR, "avcodec_find_encoder error\n");
-                return false;
-            }
-            AVCodecContext* codec_ctx = avcodec_alloc_context3(image_codec);
-            if(!codec_ctx) {
-                av_log(NULL, AV_LOG_ERROR, "avcodec_alloc_context3 error\n");
-                return false;
-            }
-            codec_ctx->bit_rate = ffp->stat.bit_rate;
-            codec_ctx->width = width;
-            codec_ctx->height = height;
-            codec_ctx->pix_fmt = AV_PIX_FMT_RGB24;
-            codec_ctx->codec_type = AVMEDIA_TYPE_VIDEO;
-            codec_ctx->time_base.num = is->video_st->time_base.num;
-            codec_ctx->time_base.den = is->video_st->time_base.den;
-            avcodec_open2(codec_ctx, image_codec, NULL);
-
-            int got_packet = 0;
-            AVPacket avpkt;
-            av_init_packet(&avpkt);
-            avpkt.size = 0;
-            avpkt.data = NULL;
-
-            ret = avcodec_encode_video2(codec_ctx, &avpkt, pFrameRGB, &got_packet);
-            if(ret >= 0 && got_packet > 0) {
-                FILE *pFile;
-                char szFilename[32];
-                sprintf(szFilename, "/storage/emulated/0/frametmp/frame%d.png", frameIndex);
-                pFile = open(szFilename, O_RDWR | O_TRUNC | O_CREAT, 0600);
-                if (pFile == NULL) {
-                    av_log(NULL, AV_LOG_ERROR, "pFile is null! errno=%d reason=%s\n", errno, strerror(errno));
-                    return false;
-                }
-                write(pFile, avpkt.data, avpkt.size);
-                close(pFile);
-            }
-            av_free(buffer);
-            av_free(pFrameRGB);
-            sws_freeContext(img_convert_ctx);
-            #endif
         }
 	    #endif
 
@@ -2755,7 +2710,7 @@ reload:
 #endif
         if (!(af = frame_queue_peek_readable(&is->sampq)))
             return -1;
-        av_log(NULL, AV_LOG_INFO, "shtest: audio: %lf\n", af->pts);
+        //av_log(NULL, AV_LOG_INFO, "read: audio frame pts: %lf, pos: %"PRId64"\n", af->pts, af->pos);//add:debug usage
         frame_queue_next(&is->sampq);
     } while (af->serial != is->audioq.serial);
 
@@ -3064,7 +3019,8 @@ static int audio_open(FFPlayer *opaque, int64_t wanted_channel_layout, int wante
     return spec.size;
 }
 
-static int stream_component_open_audio(FFPlayer *ffp, int stream_index)
+/**** add: open audio stream by audio_index ****/
+static int stream_component_open_audio(FFPlayer *ffp, int stream_index, int audio_index)
 {
     VideoState *is = ffp->is;
     AVFormatContext *ic = is->ic;
@@ -3077,7 +3033,6 @@ static int stream_component_open_audio(FFPlayer *ffp, int stream_index)
     int64_t channel_layout;
     int ret = 0;
     int stream_lowres = ffp->lowres;
-    int tg_index = stream_index - 1;
 
     if (stream_index < 0 || stream_index >= ic->nb_streams)
         return -1;
@@ -3106,7 +3061,7 @@ static int stream_component_open_audio(FFPlayer *ffp, int stream_index)
         goto fail;
     }
 
-    //avctx->codec_id = codec->id;
+    avctx->codec_id = codec->id;
     if(stream_lowres > av_codec_get_max_lowres(codec)){
         av_log(avctx, AV_LOG_WARNING, "The maximum value for lowres supported by the decoder is %d\n",
                 av_codec_get_max_lowres(codec));
@@ -3142,17 +3097,16 @@ static int stream_component_open_audio(FFPlayer *ffp, int stream_index)
 #endif
     }
 
-    //is->audio_switch[tg_index].eof = 0;
     ic->streams[stream_index]->discard = AVDISCARD_DEFAULT;
     if(avctx->codec_type == AVMEDIA_TYPE_AUDIO) {
-        #if CONFIG_AVFILTER
+#if CONFIG_AVFILTER
         {
             AVFilterContext *sink;
 
-            is->audio_switch[tg_index]->audio_filter_src.freq = avctx->sample_rate;
-            is->audio_switch[tg_index]->audio_filter_src.channels = avctx->channels;
-            is->audio_switch[tg_index]->audio_filter_src.channel_layout = get_valid_channel_layout(avctx->channel_layout, avctx->channels);
-            is->audio_switch[tg_index]->audio_filter_src.fmt = avctx->sample_fmt;
+            is->audio_added[audio_index]->audio_filter_src.freq = avctx->sample_rate;
+            is->audio_added[audio_index]->audio_filter_src.channels = avctx->channels;
+            is->audio_added[audio_index]->audio_filter_src.channel_layout = get_valid_channel_layout(avctx->channel_layout, avctx->channels);
+            is->audio_added[audio_index]->audio_filter_src.fmt = avctx->sample_fmt;
             SDL_LockMutex(ffp->af_mutex);
             if ((ret = configure_audio_filters(ffp, ffp->afilters, 0)) < 0) {
                 SDL_UnlockMutex(ffp->af_mutex);
@@ -3165,44 +3119,16 @@ static int stream_component_open_audio(FFPlayer *ffp, int stream_index)
             nb_channels    = av_buffersink_get_channels(sink);
             channel_layout = av_buffersink_get_channel_layout(sink);
         }
-#else
-        sample_rate    = avctx->sample_rate;
-        nb_channels    = avctx->channels;
-        channel_layout = avctx->channel_layout;
 #endif
+        is->audio_added[audio_index].audio_stream = stream_index;
+        is->audio_added[audio_index].audio_st = ic->streams[stream_index];
 
-        /* prepare audio output */
-        /*if ((ret = audio_open(ffp, channel_layout, nb_channels, sample_rate, &is->audio_switch[tg_index].audio_tgt)) < 0)
-            goto fail;*/
-        //ffp_set_audio_codec_info(ffp, AVCODEC_MODULE_NAME, avcodec_get_name(avctx->codec_id)); //not need
-        /*is->audio_switch[tg_index].audio_hw_buf_size = ret;
-        is->audio_switch[tg_index].audio_src = is->audio_switch[tg_index].audio_tgt;
-        is->audio_switch[tg_index].audio_buf_size = 0;
-        is->audio_switch[tg_index].audio_buf_index = 0;*/
-
-        /* init averaging filter */
-        is->audio_switch[tg_index].audio_diff_avg_coef = exp(log(0.01) / AUDIO_DIFF_AVG_NB);
-        is->audio_switch[tg_index].audio_diff_avg_count = 0;
-        /* since we do not have a precise anough audio FIFO fullness,
-           we correct audio sync only if larger than this threshold */
-        //is->audio_switch[tg_index].audio_diff_threshold = 2.0 * is->audio_switch[tg_index].audio_hw_buf_size / is->audio_switch[tg_index].audio_tgt.bytes_per_sec;
-
-        is->audio_switch[tg_index].audio_stream = stream_index;
-        is->audio_switch[tg_index].audio_st = ic->streams[stream_index];
-        //is->audio_stream = stream_index;
-        //is->audio_st = ic->streams[stream_index];
-
-        is->audio_switch[tg_index].auddec.avctx = avctx;
-
-        decoder_init(&is->audio_switch[tg_index].auddec, avctx, &is->audio_switch[tg_index].audioq, is->audio_switch[tg_index].continue_read_thread);
+        decoder_init(&is->audio_added[audio_index].auddec, avctx, &is->audio_added[audio_index].audioq, is->continue_read_thread);
         if ((is->ic->iformat->flags & (AVFMT_NOBINSEARCH | AVFMT_NOGENSEARCH | AVFMT_NO_BYTE_SEEK)) && !is->ic->iformat->read_seek) {
-            is->audio_switch[tg_index].auddec.start_pts = is->audio_switch[tg_index].audio_st->start_time;
-            is->audio_switch[tg_index].auddec.start_pts_tb = is->audio_switch[tg_index].audio_st->time_base;
+            is->audio_added[audio_index].auddec.start_pts = is->audio_added[audio_index].audio_st->start_time;
+            is->audio_added[audio_index].auddec.start_pts_tb = is->audio_added[audio_index].audio_st->time_base;
         }
-        packet_queue_start(&is->audio_switch[tg_index].audioq);
-        /*if ((ret = decoder_start(&is->audio_switch[tg_index].auddec, audio_thread, ffp, "ff_audio_dec")) < 0)
-            goto out;
-        SDL_AoutPauseAudio(ffp->aout, 0);*/
+        packet_queue_start(&is->audio_added[audio_index].audioq);
     }
     goto out;
 
@@ -3488,6 +3414,8 @@ static int read_thread(void *arg)
     int64_t prev_io_tick_counter = 0;
     int64_t io_tick_counter = 0;
     int init_ijkmeta = 0;
+    is->selected_audio_stream = 0;//add: stream selected
+    int audio_added_index = 0;//add: added audio index
 
     if (!wait_mutex) {
         av_log(NULL, AV_LOG_FATAL, "SDL_CreateMutex(): %s\n", SDL_GetError());
@@ -3536,6 +3464,7 @@ static int read_thread(void *arg)
         ret = -1;
         goto fail;
     }
+    av_log(NULL, AV_LOG_INFO, "avformat_open_input end!\n");//add:debug usage
     ffp_notify_msg1(ffp, FFP_MSG_OPEN_INPUT);
 
     if (scan_all_pmts_set)
@@ -3629,6 +3558,7 @@ static int read_thread(void *arg)
     int video_stream_count = 0;
     int h264_stream_count = 0;
     int first_h264_stream = -1;
+    int audio_stream_count = 0;//add: indicated as count
     for (i = 0; i < ic->nb_streams; i++) {
         AVStream *st = ic->streams[i];
         enum AVMediaType type = st->codecpar->codec_type;
@@ -3648,7 +3578,22 @@ static int read_thread(void *arg)
                     first_h264_stream = i;
             }
         }
+
+        if(type == AVMEDIA_TYPE_AUDIO) {
+            audio_stream_count++;
+        }
     }
+    /*** add: create audio_added and init queues by audio_stream_count ***/
+    is->audio_stream_count = audio_stream_count;
+    if(audio_stream_count > 1)
+        is->audio_added = (AudioProperty *)malloc((audio_stream_count - 1)* sizeof(AudioProperty));
+    else
+        is->audio_added = NULL;
+    for(i = 0; i < audio_stream_count - 1; i++) {
+        if(packet_queue_init(&is->audio_added[i].audioq) < 0)
+            goto fail;
+    }
+    /**********************************/
     if (video_stream_count > 1 && st_index[AVMEDIA_TYPE_VIDEO] < 0) {
         st_index[AVMEDIA_TYPE_VIDEO] = first_h264_stream;
         av_log(NULL, AV_LOG_WARNING, "multiple video stream found, prefer first h264 stream: %d\n", first_h264_stream);
@@ -3658,12 +3603,19 @@ static int read_thread(void *arg)
             av_find_best_stream(ic, AVMEDIA_TYPE_VIDEO,
                                 st_index[AVMEDIA_TYPE_VIDEO], -1, NULL, 0);
     if (!ffp->audio_disable)
-        st_index[AVMEDIA_TYPE_AUDIO] = 1;  //tmp code
+        /**** add: change the way of finding stream ****/
+        for(int index = 0; index < ic->nb_streams; index++) {
+            if(ic->streams[index]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+                st_index[AVMEDIA_TYPE_AUDIO] = index;
+                break;
+            }
+        }
         /*st_index[AVMEDIA_TYPE_AUDIO] =
             av_find_best_stream(ic, AVMEDIA_TYPE_AUDIO,
                                 st_index[AVMEDIA_TYPE_AUDIO],
                                 st_index[AVMEDIA_TYPE_VIDEO],
                                 NULL, 0);*/
+        /******************************/
     if (!ffp->video_disable && !ffp->subtitle_disable)
         st_index[AVMEDIA_TYPE_SUBTITLE] =
             av_find_best_stream(ic, AVMEDIA_TYPE_SUBTITLE,
@@ -3687,10 +3639,14 @@ static int read_thread(void *arg)
     /* open the streams */
     if (st_index[AVMEDIA_TYPE_AUDIO] >= 0) {
         stream_component_open(ffp, st_index[AVMEDIA_TYPE_AUDIO]);
-        stream_component_open_audio(ffp, 1);
-        stream_component_open_audio(ffp, 2);
-        stream_component_open_audio(ffp, 3);
-        stream_component_open_audio(ffp, 4);
+        /*** add: open added audio stream ***/
+        for(i = st_index[AVMEDIA_TYPE_AUDIO] + 1; i < ic->nb_streams; i++) {
+            if(ic->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+                stream_component_open_audio(ffp, i, audio_added_index);
+                audio_added_index++;
+            }
+        }
+        /*********************/
     } else {
         ffp->av_sync_type = AV_SYNC_VIDEO_MASTER;
         is->av_sync_type  = ffp->av_sync_type;
@@ -3728,6 +3684,12 @@ static int read_thread(void *arg)
     }
     if (is->audio_stream >= 0) {
         is->audioq.is_buffer_indicator = 1;
+        /*** add: added audio config ***/
+        if(audio_stream_count > 1) {
+            for(i = 0; i < audio_stream_count - 1; i++)
+                is->audio_added[i].audioq.is_buffer_indicator = 1;
+        }
+        /****************/
         is->buffer_indicator_queue = &is->audioq;
     } else if (is->video_stream >= 0) {
         is->videoq.is_buffer_indicator = 1;
@@ -3763,12 +3725,18 @@ static int read_thread(void *arg)
     }
 
     for (;;) {
-        av_log(NULL, AV_LOG_INFO, "shtest: the packet nums is: %d:%d, %d:%d, %d:%d, %d:%d, %d:%d\n",
+        /*** add: cut track ***/
+        if(is->selected_audio_stream > 0) {
+            ffp_switch_audio_track(ffp, is->selected_audio_stream);
+            is->selected_audio_stream = 0;
+        }
+        /*********************/
+        /*** add:debug usage **/
+        /*av_log(NULL, AV_LOG_INFO, "the packet nums is: %d:%d, %d:%d, %d:%d, %d:%d\n",
             is->audio_stream, is->audioq.nb_packets,
-            is->audio_switch[0].audio_stream, is->audio_switch[0].audioq.nb_packets,
-            is->audio_switch[1].audio_stream, is->audio_switch[1].audioq.nb_packets,
-            is->audio_switch[2].audio_stream, is->audio_switch[2].audioq.nb_packets,
-            is->audio_switch[3].audio_stream, is->audio_switch[3].audioq.nb_packets);
+            is->audio_added[0].audio_stream, is->audio_added[0].audioq.nb_packets,
+            is->audio_added[1].audio_stream, is->audio_added[1].audioq.nb_packets,
+            is->audio_added[2].audio_stream, is->audio_added[2].audioq.nb_packets);*/
         if (is->abort_request)
             break;
 #ifdef FFP_MERGE
@@ -3790,10 +3758,6 @@ static int read_thread(void *arg)
             continue;
         }
 #endif
-        if(audioTrack_switch > 0) {
-            audio_track_switch(is, audioTrack_switch);
-            audioTrack_switch = 0;
-        }
         if (is->seek_req) {
             int64_t seek_target = is->seek_pos;
             int64_t seek_min    = is->seek_rel > 0 ? seek_target - is->seek_rel + 2: INT64_MIN;
@@ -3811,14 +3775,12 @@ static int read_thread(void *arg)
                 if (is->audio_stream >= 0) {
                     packet_queue_flush(&is->audioq);
                     packet_queue_put(&is->audioq, &flush_pkt);
-                    packet_queue_flush(&is->audio_switch[0].audioq);
-                    packet_queue_put(&is->audio_switch[0].audioq, &flush_pkt);
-                    packet_queue_flush(&is->audio_switch[1].audioq);
-                    packet_queue_put(&is->audio_switch[1].audioq, &flush_pkt);
-                    packet_queue_flush(&is->audio_switch[2].audioq);
-                    packet_queue_put(&is->audio_switch[2].audioq, &flush_pkt);
-                    packet_queue_flush(&is->audio_switch[3].audioq);
-                    packet_queue_put(&is->audio_switch[3].audioq, &flush_pkt);
+                    /*** add: put flush pkt ***/
+                    for(i = 0; i < audio_stream_count - 1; i++) {
+                        packet_queue_flush(&is->audio_added[i].audioq);
+                        packet_queue_put(&is->audio_added[i].audioq, &flush_pkt);
+                    }
+                    /*****************/
                     // TODO: clear invaild audio data
                     // SDL_AoutFlushAudio(ffp->aout);
                 }
@@ -3972,10 +3934,11 @@ static int read_thread(void *arg)
                     packet_queue_put_nullpacket(&is->videoq, is->video_stream);
                 if (is->audio_stream >= 0) {
                     packet_queue_put_nullpacket(&is->audioq, is->audio_stream);
-                    packet_queue_put_nullpacket(&is->audio_switch[0].audioq, is->audio_switch[0].audio_stream);
-                    packet_queue_put_nullpacket(&is->audio_switch[1].audioq, is->audio_switch[1].audio_stream);
-                    packet_queue_put_nullpacket(&is->audio_switch[2].audioq, is->audio_switch[2].audio_stream);
-                    packet_queue_put_nullpacket(&is->audio_switch[3].audioq, is->audio_switch[3].audio_stream);
+                    /*** add: put nullpkt ***/
+                    for(i = 0; i < audio_stream_count - 1; i++) {
+                        packet_queue_put_nullpacket(&is->audio_added[i].audioq, is->audio_added[i].audio_stream);
+                    }
+                    /****************/
                 }
                 if (is->subtitle_stream >= 0)
                     packet_queue_put_nullpacket(&is->subtitleq, is->subtitle_stream);
@@ -3986,10 +3949,11 @@ static int read_thread(void *arg)
                     packet_queue_put_nullpacket(&is->videoq, is->video_stream);
                 if (is->audio_stream >= 0) {
                     packet_queue_put_nullpacket(&is->audioq, is->audio_stream);
-                    packet_queue_put_nullpacket(&is->audio_switch[0].audioq, is->audio_switch[0].audio_stream);
-                    packet_queue_put_nullpacket(&is->audio_switch[1].audioq, is->audio_switch[1].audio_stream);
-                    packet_queue_put_nullpacket(&is->audio_switch[2].audioq, is->audio_switch[2].audio_stream);
-                    packet_queue_put_nullpacket(&is->audio_switch[3].audioq, is->audio_switch[3].audio_stream);
+                    /*** add: put nullpkt ***/
+                    for(i = 0; i< audio_stream_count - 1; i++) {
+                        packet_queue_put_nullpacket(&is->audio_added[i].audioq, is->audio_added[i].audio_stream);
+                    }
+                    /*****************/
                 }
                 if (is->subtitle_stream >= 0)
                     packet_queue_put_nullpacket(&is->subtitleq, is->subtitle_stream);
@@ -4013,13 +3977,23 @@ static int read_thread(void *arg)
             is->eof = 0;
         }
 
+        //add:debug usage
+        /*double pkt_pts = pkt->pts * av_q2d(ic->streams[pkt->stream_index]->time_base);
+        av_log(NULL, AV_LOG_INFO,
+               "read_frame stream=%d, pts=%lf, dts=%lld, "
+               "size=%d, duration=%"PRId64", flags=%d, pos=%lld\n",
+               pkt->stream_index,
+               pkt_pts,
+               pkt->dts,
+               pkt->size, pkt->duration, pkt->flags, pkt->pos);*/
         if (pkt->flags & AV_PKT_FLAG_DISCONTINUITY) {
             if (is->audio_stream >= 0) {
                 packet_queue_put(&is->audioq, &flush_pkt);
-                packet_queue_put(&is->audio_switch[0].audioq, &flush_pkt);
-                packet_queue_put(&is->audio_switch[1].audioq, &flush_pkt);
-                packet_queue_put(&is->audio_switch[2].audioq, &flush_pkt);
-                packet_queue_put(&is->audio_switch[3].audioq, &flush_pkt);
+                /*** add: put flush pkt ***/
+                for(i = 0; i < audio_stream_count - 1; i++) {
+                    packet_queue_put(&is->audio_added[i].audioq, &flush_pkt);
+                }
+                /**************/
             }
             if (is->subtitle_stream >= 0) {
                 packet_queue_put(&is->subtitleq, &flush_pkt);
@@ -4037,22 +4011,39 @@ static int read_thread(void *arg)
                 av_q2d(ic->streams[pkt->stream_index]->time_base) -
                 (double)(ffp->start_time != AV_NOPTS_VALUE ? ffp->start_time : 0) / 1000000
                 <= ((double)ffp->duration / 1000000);
+        /*** add: handling the case of muted tracks ***/
+        if(isnan(ffp_get_master_clock(is))) {
+            for(i = 0; i < audio_stream_count - 1; i++) {
+                if(is->audio_added[i].audioq.first_pkt) {
+                    double pkt_pts = (double)(is->audio_added[i].audioq.first_pkt->pkt.pts * av_q2d(is->ic->streams[is->audio_added[i].audio_stream]->time_base));
+                    if(pkt_pts < get_clock(&is->vidclk)) {
+                        av_log(NULL, AV_LOG_INFO, "pkt_pts:%lf < vidclk:%lf\n", pkt_pts, get_clock(&is->vidclk));
+                        packet_queue_del(&is->audio_added[i].audioq);
+                    }
+                }
+            }
+        }
+        /***************************/
+        /*** add: put pkt ***/
+        int isPktPut = 0;
+        for(i = 0; i < audio_stream_count - 1; i++) {
+            if(pkt->stream_index == is->audio_added[i].audio_stream && pkt_in_play_range){
+                packet_queue_put(&is->audio_added[i].audioq, pkt);
+                isPktPut = 1;
+            }
+        }
+        /*****************/
         if (pkt->stream_index == is->audio_stream && pkt_in_play_range) {
             packet_queue_put(&is->audioq, pkt);
-        } if(pkt->stream_index == is->audio_switch[0].audio_stream && pkt_in_play_range){ //&& !stream_has_enough_packets(is->audio_switch[0].audio_st, is->audio_switch[0].audio_stream, &is->audio_switch[0].audioq, 250)) {
-            packet_queue_put(&is->audio_switch[0].audioq, pkt);
-        } else if(pkt->stream_index == is->audio_switch[1].audio_stream && pkt_in_play_range){// && !stream_has_enough_packets(is->audio_switch[1].audio_st, is->audio_switch[1].audio_stream, &is->audio_switch[1].audioq, 250)) {
-            packet_queue_put(&is->audio_switch[1].audioq, pkt);
-        } else if(pkt->stream_index == is->audio_switch[2].audio_stream && pkt_in_play_range){// && !stream_has_enough_packets(is->audio_switch[2].audio_st, is->audio_switch[2].audio_stream, &is->audio_switch[2].audioq, 250)) {
-            packet_queue_put(&is->audio_switch[2].audioq, pkt);
-        } else if(pkt->stream_index == is->audio_switch[3].audio_stream && pkt_in_play_range){// && !stream_has_enough_packets(is->audio_switch[3].audio_st, is->audio_switch[3].audio_stream, &is->audio_switch[3].audioq, 250)) {
-            packet_queue_put(&is->audio_switch[3].audioq, pkt);
-        } else if (pkt->stream_index == is->video_stream && pkt_in_play_range
+            isPktPut = 1;
+        } if (pkt->stream_index == is->video_stream && pkt_in_play_range
                    && !(is->video_st && (is->video_st->disposition & AV_DISPOSITION_ATTACHED_PIC))) {
             packet_queue_put(&is->videoq, pkt);
-        } else if (pkt->stream_index == is->subtitle_stream && pkt_in_play_range) {
+            isPktPut = 1;
+        } if (pkt->stream_index == is->subtitle_stream && pkt_in_play_range) {
             packet_queue_put(&is->subtitleq, pkt);
-        } else {
+            isPktPut = 1;
+        } if(isPktPut == 0) {
             av_packet_unref(pkt);
         }
 
@@ -4125,10 +4116,6 @@ static VideoState *stream_open(FFPlayer *ffp, const char *filename, AVInputForma
 
     if (packet_queue_init(&is->videoq) < 0 ||
         packet_queue_init(&is->audioq) < 0 ||
-        packet_queue_init(&is->audio_switch[0].audioq) < 0 ||
-        packet_queue_init(&is->audio_switch[1].audioq) < 0 ||
-        packet_queue_init(&is->audio_switch[2].audioq) < 0 ||
-        packet_queue_init(&is->audio_switch[3].audioq) < 0 ||
         packet_queue_init(&is->subtitleq) < 0)
         goto fail;
 
@@ -5297,16 +5284,81 @@ int ffp_get_video_rotate_degrees(FFPlayer *ffp)
     return theta;
 }
 
-void audio_track_switch(VideoState *is, int stream) {
+/*** add: cut track ***/
+void ffp_switch_audio_track(FFPlayer *ffp, int stream)
+{
+    VideoState *is = ffp->is;
+
+    packet_queue_abort(is->auddec.queue);
+    frame_queue_signal(&is->sampq);
+    SDL_WaitThread(is->auddec.decoder_tid, NULL);
+    is->auddec.decoder_tid = NULL;
+
+    SDL_AoutCloseAudio(ffp->aout);
+    av_packet_unref(&is->auddec.pkt);
+
+    swr_free(&is->swr_ctx);
+    av_freep(&is->audio_buf1);
+    is->audio_buf1_size = 0;
+    is->audio_buf = NULL;
+
     is->last_audio_stream = stream;
-    is->audioq = is->audio_switch[stream - 1].audioq;
 
-    is->sampq.pktq = &is->audioq;
-    is->audio_stream = is->audio_switch[stream - 1].audio_stream;
-    is->audio_st = is->audio_switch[stream - 1].audio_st;
+    int ret = 0;
+    for(int i = 0; i < is->audio_stream_count - 1; i++) {
+        if(is->audio_added[i].audio_stream == stream) {
+            int sample_rate = is->audio_added[i].auddec.avctx->sample_rate;
+            int nb_channels = is->audio_added[i].auddec.avctx->channels;
+            int64_t channel_layout = is->audio_added[i].auddec.avctx->channel_layout;
+            if((ret = audio_open(ffp, channel_layout, nb_channels, sample_rate, &is->audio_tgt)) < 0)
+            {
+                av_log(NULL, AV_LOG_ERROR, "audio_open failed!\n");
+            }
+            ffp_set_audio_codec_info(ffp, AVCODEC_MODULE_NAME, avcodec_get_name(is->audio_added[i].auddec.avctx->codec_id));
+            is->audio_hw_buf_size = ret;
+            is->audio_src = is->audio_tgt;
+            is->audio_buf_size = 0;
+            is->audio_buf_index = 0;
 
-    is->auddec.queue = &is->audioq;
-    //is->auddec.avctx = is->audio_switch[stream - 1].auddec.avctx;
+            is->audio_diff_avg_coef  = exp(log(0.01) / AUDIO_DIFF_AVG_NB);
+            is->audio_diff_avg_count = 0;
+            is->audio_diff_threshold = 2.0 * is->audio_hw_buf_size / is->audio_tgt.bytes_per_sec;
+
+            packet_queue_abort(&is->audio_added[i].audioq);
+
+            SDL_LockMutex(is->audioq.mutex);
+            SDL_LockMutex(is->audio_added[i].audioq.mutex);
+            DATA_SWAP(is->audioq, is->audio_added[i].audioq);
+            SDL_UnlockMutex(is->audio_added[i].audioq.mutex);
+            SDL_UnlockMutex(is->audioq.mutex);
+
+            DATA_SWAP(is->audio_stream, is->audio_added[i].audio_stream);
+            DATA_SWAP(is->audio_st, is->audio_added[i].audio_st);
+            DATA_SWAP(is->auddec.avctx, is->audio_added[i].auddec.avctx);
+
+            decoder_init(&is->auddec, is->auddec.avctx, &is->audioq, is->continue_read_thread);
+            if ((is->ic->iformat->flags & (AVFMT_NOBINSEARCH | AVFMT_NOGENSEARCH | AVFMT_NO_BYTE_SEEK)) && !is->ic->iformat->read_seek)
+            {
+                is->auddec.start_pts = is->audio_st->start_time;
+                is->auddec.start_pts_tb = is->audio_st->time_base;
+            }
+            SDL_LockMutex(is->audio_added[i].audioq.mutex);
+            is->audio_added[i].audioq.abort_request = 0;
+            SDL_UnlockMutex(is->audio_added[i].audioq.mutex);
+
+            SDL_LockMutex(is->auddec.queue->mutex);
+            is->auddec.queue->abort_request = 0;
+            SDL_UnlockMutex(is->auddec.queue->mutex);
+
+            is->auddec.decoder_tid = SDL_CreateThreadEx(&is->auddec._decoder_tid, audio_thread, ffp, "ff_audio_dec");
+            if(!is->auddec.decoder_tid)
+            {
+                av_log(NULL, AV_LOG_ERROR, "SDL_CreateThread(): %s\n", SDL_GetError());
+            }
+            SDL_AoutPauseAudio(ffp->aout, 0);
+            break;
+        }
+    }
 }
 
 int ffp_set_stream_selected(FFPlayer *ffp, int stream, int selected)
@@ -5334,7 +5386,7 @@ int ffp_set_stream_selected(FFPlayer *ffp, int stream, int selected)
                     stream_component_close(ffp, is->video_stream);
                 break;
             case AVMEDIA_TYPE_AUDIO:
-                audioTrack_switch = stream;
+                is->selected_audio_stream = stream;//add: stream selected
                 //if (stream != is->audio_stream && is->audio_stream >= 0)
                     //stream_component_close(ffp, is->audio_stream);
                 break;

@@ -273,15 +273,10 @@ typedef struct Decoder {
 } Decoder;
 
 typedef struct AudioSwitchParams {
-    int eof;
 #if CONFIG_AVFILTER
     struct AudioParams audio_filter_src;
 #endif
     struct AudioParams audio_tgt;
-    int audio_hw_buf_size;
-    struct AudioParams audio_src;
-    unsigned int audio_buf_size; /* in bytes */
-    int audio_buf_index; /* in bytes */
     double audio_diff_avg_coef;
     int audio_diff_avg_count;
     double audio_diff_threshold;
@@ -292,7 +287,16 @@ typedef struct AudioSwitchParams {
     SDL_cond *continue_read_thread;
 } AudioSwitchParams;
 
+/*** add: added audio config ***/
+typedef struct AudioProperty {
+    PacketQueue audioq;
+    int audio_stream;
+    AVStream *audio_st;
+    Decoder auddec;
+} AudioProperty;
+
 typedef struct VideoState {
+    int selected_audio_stream;//add: stream selected
     SDL_Thread *read_tid;
     SDL_Thread _read_tid;
     AVInputFormat *iformat;
@@ -350,9 +354,10 @@ typedef struct VideoState {
 #if CONFIG_AVFILTER
     struct AudioParams audio_filter_src;
 #endif
-    struct AudioSwitchParams audio_switch[4];
+    struct AudioProperty *audio_added;//add: added audio
     struct AudioParams audio_tgt;
     struct SwrContext *swr_ctx;
+    int audio_stream_count;//add: indicated as count
     int frame_drops_early;
     int frame_drops_late;
     int continuous_frame_drops_early;

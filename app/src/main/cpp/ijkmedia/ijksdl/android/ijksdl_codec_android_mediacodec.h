@@ -80,7 +80,7 @@ typedef struct SDL_AMediaCodec
     sdl_amedia_status_t     (*func_flush)(SDL_AMediaCodec* acodec);
 
     ssize_t                 (*func_writeInputData)(SDL_AMediaCodec* acodec, size_t idx, const uint8_t *data, size_t size);
-    uint8_t*                (*func_getOutputBuffer)(SDL_AMediaCodec* acodec, size_t idx);
+    uint8_t*                (*func_getOutputBuffer)(SDL_AMediaCodec* acodec, size_t idx);//add:implement getOutputBuffer
 
     ssize_t                 (*func_dequeueInputBuffer)(SDL_AMediaCodec* acodec, int64_t timeoutUs);
     sdl_amedia_status_t     (*func_queueInputBuffer)(SDL_AMediaCodec* acodec, size_t idx, off_t offset, size_t size, uint64_t time, uint32_t flags);

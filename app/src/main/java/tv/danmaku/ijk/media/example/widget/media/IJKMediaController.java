@@ -460,14 +460,14 @@ public class IJKMediaController  extends FrameLayout {
             if(keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                 int pos = mPlayer.getCurrentPosition();
                 pos -= 5000; // milliseconds
-                mPlayer.seekTo(pos);
+                //mPlayer.seekTo(pos);//add: seek optimization for phone
                 setProgress();
 
                 show(sDefaultTimeout);
             } else if(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
                 int pos = mPlayer.getCurrentPosition();
                 pos += 5000; // milliseconds
-                mPlayer.seekTo(pos);
+                //mPlayer.seekTo(pos);//add: seek optimization for phone
                 setProgress();
 
                 show(sDefaultTimeout);
@@ -529,6 +529,7 @@ public class IJKMediaController  extends FrameLayout {
     // case there WON'T BE onStartTrackingTouch/onStopTrackingTouch notifications,
     // we will simply apply the updated position without suspending regular updates.
     private final SeekBar.OnSeekBarChangeListener mSeekListener = new SeekBar.OnSeekBarChangeListener() {
+        long newposition;//add: seek optimization for phone
         @Override
         public void onStartTrackingTouch(SeekBar bar) {
             show(3600000);
@@ -552,7 +553,7 @@ public class IJKMediaController  extends FrameLayout {
             }
 
             long duration = mPlayer.getDuration();
-            long newposition = (duration * progress) / 1000L;
+            newposition = (duration * progress) / 1000L;//add: seek optimization for phone
             mPlayer.seekTo( (int) newposition);
             if (mCurrentTime != null)
                 mCurrentTime.setText(stringForTime( (int) newposition));
@@ -561,6 +562,7 @@ public class IJKMediaController  extends FrameLayout {
         @Override
         public void onStopTrackingTouch(SeekBar bar) {
             mDragging = false;
+            //mPlayer.seekTo((int)newposition);//add: seek optimization for phone
             setProgress();
             updatePausePlay();
             show(sDefaultTimeout);

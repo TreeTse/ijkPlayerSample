@@ -41,7 +41,6 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
-
 import java.io.FileDescriptor;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -51,7 +50,6 @@ import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Map;
-
 import tv.danmaku.ijk.media.player.annotations.AccessedByNative;
 import tv.danmaku.ijk.media.player.annotations.CalledByNative;
 import tv.danmaku.ijk.media.player.misc.IAndroidIO;
@@ -190,6 +188,7 @@ public final class IjkMediaPlayer extends AbstractMediaPlayer {
                 libLoader.loadLibrary("ijkffmpeg");
                 //libLoader.loadLibrary("ijksdl");
                 libLoader.loadLibrary("ijkplayer");
+                libLoader.loadLibrary("ranger-jni");
                 mIsLibLoaded = true;
             }
         }

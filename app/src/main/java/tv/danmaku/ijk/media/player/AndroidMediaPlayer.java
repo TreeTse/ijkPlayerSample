@@ -437,6 +437,7 @@ public class AndroidMediaPlayer extends AbstractMediaPlayer {
         }
     }
 
+    // add: selectTrack
     public void selectTrack(int track) { }
     public int getSelectedTrack(int trackType) { return -1; }
 }

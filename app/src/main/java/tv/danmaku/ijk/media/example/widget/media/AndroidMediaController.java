@@ -26,6 +26,7 @@ import android.view.View;
 
 import java.util.ArrayList;
 
+/** add:extends IJKMediaController instead of MediaController **/
 public class AndroidMediaController extends IJKMediaController implements IMediaController {
     private ActionBar mActionBar;
     public AndroidMediaController(Context context, AttributeSet attrs) {

@@ -22,7 +22,7 @@ public class MediaCodec {
     public final MediaFormat getOutputFormat();
 
     public ByteBuffer[] getInputBuffers();
-    public ByteBuffer getOutputBuffer(int index);
+    public ByteBuffer getOutputBuffer(int index);//add:implement getOutputBuffer
 
     public final int  dequeueInputBuffer(long timeoutUs);
     public final void queueInputBuffer(int index, int offset, int size, long presentationTimeUs, int flags);

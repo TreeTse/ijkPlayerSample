@@ -213,6 +213,7 @@ public interface IMediaPlayer {
      */
     void setDataSource(IMediaDataSource mediaDataSource);
 
+    // add: selectTrack
     void selectTrack(int track);
     int getSelectedTrack(int trackType);
 }

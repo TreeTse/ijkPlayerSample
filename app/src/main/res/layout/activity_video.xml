@@ -11,13 +11,6 @@
         android:id="@+id/v_view"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
-    <ProgressBar
-        android:id="@+id/volume_bar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:max="100"
-        style="@android:style/Widget.ProgressBar.Horizontal"
-        android:alpha="0.4"/>
     <TableLayout
         android:id="@+id/hud_view"
         android:layout_width="wrap_content"

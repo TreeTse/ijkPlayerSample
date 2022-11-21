@@ -25,7 +25,6 @@
         android:inputType="textUri"
         android:textSize="12sp"
         />
-
     <Button
         android:id="@+id/btn_play"
         android:layout_width="wrap_content"
@@ -59,7 +58,6 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         />
-
     <RadioGroup
         android:id="@+id/rgPlay"
         android:layout_width="wrap_content"
@@ -73,19 +71,18 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:checked="true"
-            android:text="ijkMediaPlayer" />
+            android:text="ijkPlayer" />
         <RadioButton
             android:id="@+id/rb2"
             android:layout_marginLeft="10dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="AndroidMediaPlayer" />
+            android:text="MediaPlayer" />
         <RadioButton
             android:id="@+id/rb3"
             android:layout_marginLeft="10dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="IjkExoMediaPlayer" />
+            android:text="ExoPlayer" />
     </RadioGroup>
-
 </RelativeLayout>

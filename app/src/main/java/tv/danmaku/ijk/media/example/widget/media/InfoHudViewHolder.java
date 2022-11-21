@@ -1,7 +1,6 @@
 package tv.danmaku.ijk.media.example.widget.media;
 
 import android.content.Context;
-import android.media.MediaMetadataRetriever;
 import android.os.Handler;
 import android.os.Message;
 import android.util.SparseArray;
@@ -16,9 +15,9 @@ import tv.danmaku.ijk.media.player.IMediaPlayer;
 import tv.danmaku.ijk.media.player.IjkMediaPlayer;
 import tv.danmaku.ijk.media.player.MediaPlayerProxy;
 import com.example.ijkplayersample.R;
-import tv.danmaku.ijk.media.player.misc.IjkTrackInfo;
 
-import static tv.danmaku.ijk.media.player.misc.ITrackInfo.MEDIA_TRACK_TYPE_AUDIO;
+import tv.danmaku.ijk.media.player.misc.ITrackInfo;
+import tv.danmaku.ijk.media.player.misc.IjkTrackInfo;
 
 public class InfoHudViewHolder {
     private TableLayoutBinder mTableLayoutBinder;
@@ -26,7 +25,6 @@ public class InfoHudViewHolder {
     private IMediaPlayer mMediaPlayer;
     private long mLoadCost = 0;
     private long mSeekCost = 0;
-    private MediaMetadataRetriever mRetriever;
     private boolean mIsPrepared= false;
 
     public InfoHudViewHolder(Context context, TableLayout tableLayout) {
@@ -35,10 +33,6 @@ public class InfoHudViewHolder {
 
     public void setIsPrepared(boolean isPrepared) {
         mIsPrepared = isPrepared;
-    }
-
-    public void setMediaMetadataRetriever(MediaMetadataRetriever mmr) {
-        mRetriever = mmr;
     }
 
     private void appendSection(int nameId) {
@@ -140,10 +134,10 @@ public class InfoHudViewHolder {
                         decoder = ijkMp.getMediaInfo().mVideoDecoder + ", " + ijkMp.getMediaInfo().mVideoDecoderImpl;
                         fpsDecode = Float.toString(ijkMp.getVideoDecodeFramesPerSecond());
                         fpsOutput = Float.toString(ijkMp.getVideoOutputFramesPerSecond());
-                        curAudioTrack = ijkMp.getSelectedTrack(MEDIA_TRACK_TYPE_AUDIO);
+                        curAudioTrack = ijkMp.getSelectedTrack(ITrackInfo.MEDIA_TRACK_TYPE_AUDIO);
                         trackInfo = ijkMp.getTrackInfo();
                         for(int i = 0; i < trackInfo.length; i++) {
-                            if(trackInfo[i].getTrackType() == MEDIA_TRACK_TYPE_AUDIO)
+                            if(trackInfo[i].getTrackType() == ITrackInfo.MEDIA_TRACK_TYPE_AUDIO)
                                 audioTrackSize++;
                         }
                         //mp = (IjkMediaPlayer) mMediaPlayer;
@@ -197,7 +191,6 @@ public class InfoHudViewHolder {
                         duration  = mp.getDuration();
                     }
                     long curDuration         = mp.getCurrentPosition();
-                    //long d = Long.valueOf(mRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)) / 1000; //test
 
                     setRowValue(R.string.vdec, decoder);
                     /*setRowValue(R.string.v_cache, String.format(Locale.US, "%s, %s", formatedDurationMilli(videoCachedDuration), formatedSize(videoCachedBytes)));

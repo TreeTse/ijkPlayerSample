@@ -57,9 +57,13 @@ jobject J4AC_android_media_MediaCodec__getOutputFormat__asGlobalRef__catchAll(JN
 jobjectArray J4AC_android_media_MediaCodec__getInputBuffers(JNIEnv *env, jobject thiz);
 jobjectArray J4AC_android_media_MediaCodec__getInputBuffers__catchAll(JNIEnv *env, jobject thiz);
 jobjectArray J4AC_android_media_MediaCodec__getInputBuffers__asGlobalRef__catchAll(JNIEnv *env, jobject thiz);
+/*********************************
+ * add:implement getOutputBuffer
+ */
 jobject J4AC_android_media_MediaCodec__getOutputBuffer(JNIEnv *env, jobject thiz, jint index);
 jobject J4AC_android_media_MediaCodec__getOutputBuffer__catchAll(JNIEnv *env, jobject thiz, jint index);
 jobject J4AC_android_media_MediaCodec__getOutputBuffer__asGlobalRef__catchAll(JNIEnv *env, jobject thiz, jint index);
+/**********************************/
 jint J4AC_android_media_MediaCodec__dequeueInputBuffer(JNIEnv *env, jobject thiz, jlong timeoutUs);
 jint J4AC_android_media_MediaCodec__dequeueInputBuffer__catchAll(JNIEnv *env, jobject thiz, jlong timeoutUs);
 void J4AC_android_media_MediaCodec__queueInputBuffer(JNIEnv *env, jobject thiz, jint index, jint offset, jint size, jlong presentationTimeUs, jint flags);
@@ -113,9 +117,13 @@ int J4A_loadClass__J4AC_android_media_MediaCodec(JNIEnv *env);
 #define J4AC_MediaCodec__getInputBuffers J4AC_android_media_MediaCodec__getInputBuffers
 #define J4AC_MediaCodec__getInputBuffers__asGlobalRef__catchAll J4AC_android_media_MediaCodec__getInputBuffers__asGlobalRef__catchAll
 #define J4AC_MediaCodec__getInputBuffers__catchAll J4AC_android_media_MediaCodec__getInputBuffers__catchAll
+/*********************************
+ * add:implement getOutputBuffer
+ */
 #define J4AC_MediaCodec__getOutputBuffer J4AC_android_media_MediaCodec__getOutputBuffer
 #define J4AC_MediaCodec__getOutputBuffer__asGlobalRef__catchAll J4AC_android_media_MediaCodec__getOutputBuffer__asGlobalRef__catchAll
 #define J4AC_MediaCodec__getOutputBuffer__catchAll J4AC_android_media_MediaCodec__getOutputBuffer__catchAll
+/**********************************/
 #define J4AC_MediaCodec__dequeueInputBuffer J4AC_android_media_MediaCodec__dequeueInputBuffer
 #define J4AC_MediaCodec__dequeueInputBuffer__catchAll J4AC_android_media_MediaCodec__dequeueInputBuffer__catchAll
 #define J4AC_MediaCodec__queueInputBuffer J4AC_android_media_MediaCodec__queueInputBuffer

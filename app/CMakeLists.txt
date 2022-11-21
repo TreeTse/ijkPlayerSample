@@ -192,6 +192,9 @@ else ()
             ${arm64_v8a_sources}
             )
 endif ()
+#add: ASan
+#target_compile_options(ijkplayer PUBLIC -fsanitize=address -fno-omit-frame-pointer)
+#set_target_properties(ijkplayer PROPERTIES LINK_FLAGS -fsanitize=address)
 
 
 # Searches for a specified prebuilt library and stores the path as a
@@ -209,6 +212,7 @@ add_library(ijkffmpeg-lib
 set_target_properties(ijkffmpeg-lib
         PROPERTIES IMPORTED_LOCATION
         libijkffmpeg.so)
+
 #sdl
 add_library(ijksdl-lib
         SHARED
@@ -216,6 +220,15 @@ add_library(ijksdl-lib
 set_target_properties(ijksdl-lib
         PROPERTIES IMPORTED_LOCATION
         libijksdl.so)
+
+# add: ranger
+configure_file(${Project_SOURCE_DIR}/src/main/cpp/jniLibs/${ANDROID_ABI}/libranger-jni.so ${Project_BINARY_DIR}/libranger-jni.so COPYONLY)
+add_library(ijkranger-lib
+        SHARED
+        IMPORTED)
+set_target_properties(ijkranger-lib
+        PROPERTIES IMPORTED_LOCATION
+        libranger-jni.so)
 
 find_library(log-lib log)
 find_library(m-lib m)
@@ -250,4 +263,4 @@ target_link_libraries( # Specifies the target library.
 
         # Links the target library to the log library
         # included in the NDK.
-        ijkffmpeg-lib ${log-lib} ${m-lib} ${z-lib} ${android-lib} ${EGL-lib} ${GLES-lib} ${jnigraphics-lib} ${OpenSLES-lib})
+        ijkffmpeg-lib ijkranger-lib ${log-lib} ${m-lib} ${z-lib} ${android-lib} ${EGL-lib} ${GLES-lib} ${jnigraphics-lib} ${OpenSLES-lib})
