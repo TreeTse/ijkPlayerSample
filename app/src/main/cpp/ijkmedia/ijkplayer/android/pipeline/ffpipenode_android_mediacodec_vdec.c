@@ -1339,7 +1339,7 @@ static int drain_output_buffer_l(JNIEnv *env, IJKFF_Pipenode *node, int64_t time
                         av_log(NULL, AV_LOG_INFO, "format : %s\n", SDL_AMediaCodec_getColorFormatName(color_format));
                     } else {
                         av_log(NULL, AV_LOG_ERROR, "AMediaCodec_getOutputFormat return null!\n");
-                    } 
+                    }
                     if(width!=0 & height!=0) {
                         #if 0   //save to yuv
                         yuv_size = width * height * 3 / 2;
@@ -2150,6 +2150,15 @@ IJKFF_Pipenode *ffpipenode_create_video_decoder_from_android_mediacodec(FFPlayer
         strcpy(opaque->mcc.mime_type, SDL_AMIME_VIDEO_MPEG4);
         opaque->mcc.profile = opaque->codecpar->profile >= 0 ? opaque->codecpar->profile : 0;
         opaque->mcc.level   = opaque->codecpar->level >= 0 ? opaque->codecpar->level : 1;
+        break;
+    case AV_CODEC_ID_AV1://add: av1 video
+        if(!ffp->mediacodec_all_videos) {
+            ALOGE("%s: MediaCodec/AV1 is disabled. codec_id:%d \n", __func__, opaque->codecpar->codec_id);
+            goto fail;
+        }
+        strcpy(opaque->mcc.mime_type, SDL_AMIME_VIDEO_AV1);
+        opaque->mcc.profile = opaque->codecpar->profile;
+        opaque->mcc.level   = opaque->codecpar->level;
         break;
 
     default:
