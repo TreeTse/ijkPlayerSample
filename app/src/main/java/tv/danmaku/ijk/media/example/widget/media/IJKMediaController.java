@@ -42,7 +42,7 @@ public class IJKMediaController  extends FrameLayout {
     private TextView mEndTime, mCurrentTime;
     private boolean mShowing;
     private boolean mDragging;
-    private static final int sDefaultTimeout = 6600;    //中间停5秒，前后0.8秒给渐入渐出
+    private static final int sDefaultTimeout = 2000;    //中间停5秒，前后0.8秒给渐入渐出
     StringBuilder mFormatBuilder;
     Formatter mFormatter;
     private RelativeLayout mRelativeVideo;
