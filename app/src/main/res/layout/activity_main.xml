@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#a9a9a9"
+    android:padding="20dp"
     tools:context=".MainActivity">
 
     <TextView
@@ -39,39 +41,118 @@
         android:layout_alignParentRight="true"
         android:layout_alignBottom="@id/btn_play"
         />
+    <View
+        android:id="@+id/view1"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#000000"
+        android:layout_below="@id/btn_play"/>
+    <View
+        android:id="@+id/view2"
+        android:layout_width="2dp"
+        android:layout_height="450dp"
+        android:background="#000000"
+        android:layout_below="@id/view1"/>
+    <View
+        android:layout_width="2dp"
+        android:layout_height="450dp"
+        android:background="#000000"
+        android:layout_below="@id/view1"
+        android:layout_alignParentRight="true"/>
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#000000"
+        android:layout_alignBottom="@+id/view2" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="2dp"
+        android:id="@+id/tv3"
+        android:layout_marginTop="20dp"
+        android:layout_below="@+id/btn_play"
+        android:layout_marginLeft="10dp"
+        android:textColor="#000000"
+        android:text="优先级: "
+        />
+    <Spinner
+        android:id="@+id/sp_source"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/btn_play"
+        android:layout_toRightOf="@+id/tv3"
+        android:layout_marginTop="20dp"
+        android:layout_marginLeft="10dp"
+        android:entries="@array/source" />
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:padding="2dp"
         android:id="@+id/tv2"
         android:layout_marginTop="20dp"
+        android:layout_marginLeft="10dp"
+        android:layout_toRightOf="@id/sp_source"
         android:layout_below="@id/btn_play"
         android:textColor="#000000"
-        android:text="Enable Ijk Video Hwaccel : "
-        />
+        android:text="P2P: " />
     <Switch
-        android:id="@+id/hw_switch"
+        android:id="@+id/p2p_switch"
         android:checked="true"
         android:layout_toRightOf="@id/tv2"
         android:layout_below="@id/btn_play"
         android:layout_marginTop="18dp"
         android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+    <TextView
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:padding="2dp"
+        android:id="@+id/tv4"
+        android:layout_marginTop="20dp"
+        android:layout_marginLeft="20dp"
+        android:layout_toRightOf="@id/p2p_switch"
+        android:layout_below="@id/btn_play"
+        android:textColor="#000000"
+        android:text="tracker list: " />
+    <EditText
+        android:id="@+id/track_list"
+        android:layout_toRightOf="@id/tv4"
+        android:layout_below="@id/btn_play"
+        android:layout_width="300dp"
+        android:layout_height="40dp"
+        android:hint="默认199.189.86.249:5333,5.180.41.123:5333"
+        android:layout_marginTop="10dp"
+        android:inputType="textUri"
+        android:textSize="12sp" />
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="tracker清空"
+        android:textSize="10sp"
+        android:id="@+id/tracker_clear"
+        android:layout_toRightOf="@id/track_list"
+        android:layout_below="@+id/btn_play"
         />
     <RadioGroup
         android:id="@+id/rgPlay"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_below="@id/hw_switch"
-        android:layout_marginTop="18dp"
+        android:layout_below="@id/p2p_switch"
+        android:layout_marginTop="10dp"
+        android:layout_marginLeft="10dp"
         >
         <RadioButton
             android:id="@+id/rb1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:checked="true"
-            android:text="ijkPlayer" />
+            android:text="IjkPlayer-hw" />
+        <RadioButton
+            android:id="@+id/rb4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="IjkPlayer-sw" />
         <RadioButton
             android:id="@+id/rb2"
             android:layout_marginLeft="10dp"
@@ -85,4 +166,135 @@
             android:layout_height="wrap_content"
             android:text="ExoPlayer" />
     </RadioGroup>
+    <TextView
+        android:id="@+id/tv_live"
+        android:textColor="#000000"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/rgPlay"
+        android:layout_marginLeft="25dp"
+        android:text="Live"
+        />
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_live1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tv_live"
+        android:layout_marginLeft="10dp"
+        android:text= "1. Cancao Nova"/>
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_live2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_live1"
+        android:layout_marginLeft="10dp"
+        android:text= "2. BrasilTV MOSAICO"/>
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_live3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_live2"
+        android:layout_marginLeft="10dp"
+        android:text= "3. Destaques da Copa do Nordeste"/>
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_live4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_live3"
+        android:layout_marginLeft="10dp"
+        android:text= "4. TV Brasil Esperança"/>
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_live5"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_live4"
+        android:layout_marginLeft="10dp"
+        android:text= "5. TV Senado"/>
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_live6"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_live5"
+        android:layout_marginLeft="10dp"
+        android:text= "6. TV Justica"/>
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_live7"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_live6"
+        android:layout_marginLeft="10dp"
+        android:text= "TEST"/>
+    <TextView
+        android:id="@+id/tv_vod"
+        android:textColor="#000000"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/rgPlay"
+        android:layout_toRightOf="@id/tv_live"
+        android:layout_marginLeft="400dp"
+        android:text="Vod"
+        />
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_vod1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tv_vod"
+        android:layout_marginLeft="400dp"
+        android:text= "1. Âya to majo"/>
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_vod2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_vod1"
+        android:layout_marginLeft="400dp"
+        android:text= "2. Red Water"/>
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_vod3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_vod2"
+        android:layout_marginLeft="400dp"
+        android:text= "3. Kangaroo Valley"/>
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_vod4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_vod3"
+        android:layout_marginLeft="400dp"
+        android:text= "4. Puss in Boots"/>
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_vod5"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_vod4"
+        android:layout_marginLeft="400dp"
+        android:text= "5. Trap for Cinderella"/>
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_vod6"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_vod5"
+        android:layout_marginLeft="400dp"
+        android:text= "6. Trolls: TrollsTopia Temp.4"/>
+    <Button
+        android:textColor="@drawable/selector_dialog_button"
+        android:id="@+id/btn_vod7"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_vod6"
+        android:layout_marginLeft="400dp"
+        android:text= "TEST"/>
 </RelativeLayout>

@@ -25,8 +25,10 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AlertDialog;
+import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -37,7 +39,6 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.TableLayout;
 import android.widget.TextView;
-
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -46,6 +47,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import swl.lib.common.SwlDeviceInfo;
+import tv.danmaku.ijk.media.example.jni.RangerJniImpl;
 import tv.danmaku.ijk.media.exo.IjkExoMediaPlayer;
 import tv.danmaku.ijk.media.player.AndroidMediaPlayer;
 import tv.danmaku.ijk.media.player.IMediaPlayer;
@@ -57,9 +62,16 @@ import tv.danmaku.ijk.media.player.misc.IMediaFormat;
 import tv.danmaku.ijk.media.player.misc.ITrackInfo;
 import tv.danmaku.ijk.media.player.misc.IjkMediaFormat;
 import com.example.ijkplayersample.R;
+import com.google.gson.Gson;
 import com.wisecloud.jni.NativeJni;
 import com.wisecloud.jni.PlayInfo;
+import com.wisecloud.jni.ProgramInfo;
 import com.wisecloud.jni.RangerBeanCallback;
+import com.wisecloud.jni.RangerStrCallback;
+import com.wisecloud.jni.Sources;
+import com.wisecloud.utils.DateCalc;
+import com.wisecloud.utils.MD5Utils;
+
 import tv.danmaku.ijk.media.example.application.Settings;
 import tv.danmaku.ijk.media.example.services.MediaPlayerService;
 
@@ -79,6 +91,65 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
     private static final int STATE_PLAYING = 3;
     private static final int STATE_PAUSED = 4;
     private static final int STATE_PLAYBACK_COMPLETED = 5;
+
+    private static final String sn = SwlDeviceInfo.getStbSn();//add: ranger sn
+    private static String user_id;
+
+    //add: ranger program info
+    private String[] Live_ProgramInfo_Json = {
+            "{\"app_ctx\":\"Live\",\"buss\":\"live\",\"delay\":15000000000,\"desc\":\"Cancao Nova\",\"lang\":\"\",\"program_code\":\"Cançãonova\",\"quality\":\"480p\",\"sources\":[{\"auth\":\"session_id=AUJpC8qKTOKB&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&ctrl_type=stb&dev_id=8e.08-22.03-11512293&app_ver=54001&group=1da45f1b165dbd6400151ff26a4b3a00&media_encrypted=0&cdn_type=1&main_addr=bramslb.abzhlslb.com&spared_addr=mslb.ttuvc.com&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=E6411383D6A3DC22EED72E87F1E500A9\",\"format\":\"\",\"id\":\"br_live_other_local\",\"id_code\":\"e6fee46608f12e366ea86ada215b9fb3b7240a09d56abf60a7401c7f09d3c08e\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=D61FEE44-2B94-44E5-bc4f-3390CF023093&expired=1676366548&token=A85CDCEB55C48A8BA1BD874FFD9E2FA6\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"D61FEE44-2B94-44E5-bc4f-3390CF023093\",\"priority\":1,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20},{\"auth\":\"session_id=rlFMTggiRhxL&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&dev_id=8e.08-22.03-11512293&app_ver=54001&media_encrypted=0&main_addr=http://goruyuln.cvfr4a.com/v3/youshi/&spared_addr=http://goruyuln.cvfr4a.com/v3/youshi/&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=1425767A5F244E6E588EB3A5E4A6FAE0\",\"format\":\"\",\"id\":\"br_inter_google_all\",\"id_code\":\"a422b0c901c9589c29a950667b1a90d78b42f551936b0acfdb6ee3735b3120cc\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=m2_Rn60mQpoOKyFd4vzs2CDEYT5_720p&expired=1676366548&token=16CDC3E820F4504DF0697246C7483F39\",\"main_addr\":\"http://goruyuln.cvfr4a.com/v3/youshi/\",\"main_addr_code\":\"9911b971743c45d38bd12fcf9f1d85c8beaac7e3bbda067ba53f7f0f6ef00396f50b2416e1f833c4193602a3b6c45c3d\",\"media_code\":\"m2_Rn60mQpoOKyFd4vzs2CDEYT5_720p\",\"priority\":2,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"http://goruyuln.cvfr4a.com/v3/youshi/\",\"spared_addr_code\":\"9911b971743c45d38bd12fcf9f1d85c8beaac7e3bbda067ba53f7f0f6ef00396f50b2416e1f833c4193602a3b6c45c3d\",\"tag\":\"4\",\"weight\":20},{\"auth\":\"session_id=T8tLH3l39hej&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&dev_id=8e.08-22.03-11512293&app_ver=54001&media_encrypted=0&main_addr=http://zenruk.rugo1o.com/v3/youshi/&spared_addr=http://zenruk.rugo1o.com/v3/youshi/&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=33D24693E159082D377A007554DE6EE4\",\"format\":\"\",\"id\":\"br_inter_zencdn\",\"id_code\":\"e558784fd558bdaab6841e0029fec0c7\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=m2_Rn60mQpoOKyFd4vzs2CDEYT5_720p&expired=1676366548&token=16CDC3E820F4504DF0697246C7483F39\",\"main_addr\":\"http://zenruk.rugo1o.com/v3/youshi/\",\"main_addr_code\":\"5c211e4b7aceb1a6a055a2e85872a754e18069e2dbc521ed6ab16e56bd0733aee61c9cd27ce3f7efdc88677e837fe8e0\",\"media_code\":\"m2_Rn60mQpoOKyFd4vzs2CDEYT5_720p\",\"priority\":3,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"http://zenruk.rugo1o.com/v3/youshi/\",\"spared_addr_code\":\"5c211e4b7aceb1a6a055a2e85872a754e18069e2dbc521ed6ab16e56bd0733aee61c9cd27ce3f7efdc88677e837fe8e0\",\"tag\":\"4\",\"weight\":0}],\"start\":0,\"timeout\":12000000000}",
+            "{\"app_ctx\":\"Live\",\"buss\":\"live\",\"delay\":15000000000,\"desc\":\"BrasilTV MOSAICO\",\"lang\":\"\",\"program_code\":\"58801347516903245112223793570182\",\"quality\":\"480p\",\"sources\":[{\"auth\":\"session_id=AUJpC8qKTOKB&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&ctrl_type=stb&dev_id=8e.08-22.03-11512293&app_ver=54001&group=1da45f1b165dbd6400151ff26a4b3a00&media_encrypted=0&cdn_type=1&main_addr=bramslb.abzhlslb.com&spared_addr=mslb.ttuvc.com&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=E6411383D6A3DC22EED72E87F1E500A9\",\"format\":\"\",\"id\":\"br_live_other_local\",\"id_code\":\"e6fee46608f12e366ea86ada215b9fb3b7240a09d56abf60a7401c7f09d3c08e\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=63051503545499013251089585784865&expired=1676366548&token=0BB0DA7498BD37855004E32D8EBB7E6A\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"63051503545499013251089585784865\",\"priority\":1,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20},{\"auth\":\"session_id=1D9NnjpOBJ2&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&ctrl_type=stb&dev_id=8e.08-22.03-11512293&app_ver=54001&group=1da45f1b165dbd6400151ff26a4b3a00&media_encrypted=0&cdn_type=1&main_addr=bramslb.abzhlslb.com&spared_addr=mslb.ttuvc.com&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=5B61F7DD1561F15BE7744E5EE933CF3B\",\"format\":\"\",\"id\":\"br_live_other_local_bak\",\"id_code\":\"e6fee46608f12e366ea86ada215b9fb32141d486230ded828cb5fad6c55b3d28\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=63051503545499013251089585784865&expired=1676366548&token=0BB0DA7498BD37855004E32D8EBB7E6A\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"63051503545499013251089585784865\",\"priority\":6,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20}],\"start\":0,\"timeout\":12000000000}",
+            "{\"app_ctx\":\"Live\",\"buss\":\"live\",\"delay\":15000000000,\"desc\":\"Destaques da Copa do Nordeste\",\"lang\":\"\",\"program_code\":\"DestaquesdaCopadoNordeste_720p\",\"quality\":\"480p\",\"sources\":[{\"auth\":\"session_id=AUJpC8qKTOKB&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&ctrl_type=stb&dev_id=8e.08-22.03-11512293&app_ver=54001&group=1da45f1b165dbd6400151ff26a4b3a00&media_encrypted=0&cdn_type=1&main_addr=bramslb.abzhlslb.com&spared_addr=mslb.ttuvc.com&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=E6411383D6A3DC22EED72E87F1E500A9\",\"format\":\"\",\"id\":\"br_live_other_local\",\"id_code\":\"e6fee46608f12e366ea86ada215b9fb3b7240a09d56abf60a7401c7f09d3c08e\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=pt_smjB4uUu991glkE5sH_720p&expired=1676366548&token=4701FC5A77257B76AE4866A87E0B71AC\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"pt_smjB4uUu991glkE5sH_720p\",\"priority\":1,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20},{\"auth\":\"session_id=rlFMTggiRhxL&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&dev_id=8e.08-22.03-11512293&app_ver=54001&media_encrypted=0&main_addr=http://goruyuln.cvfr4a.com/v3/youshi/&spared_addr=http://goruyuln.cvfr4a.com/v3/youshi/&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=1425767A5F244E6E588EB3A5E4A6FAE0\",\"format\":\"\",\"id\":\"br_inter_google_all\",\"id_code\":\"a422b0c901c9589c29a950667b1a90d78b42f551936b0acfdb6ee3735b3120cc\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=m2_smjB4uUu991glkE5sH_720p&expired=1676366548&token=F1B56DB8CDAD98B384E41C96D4B4E0BB\",\"main_addr\":\"http://goruyuln.cvfr4a.com/v3/youshi/\",\"main_addr_code\":\"9911b971743c45d38bd12fcf9f1d85c8beaac7e3bbda067ba53f7f0f6ef00396f50b2416e1f833c4193602a3b6c45c3d\",\"media_code\":\"m2_smjB4uUu991glkE5sH_720p\",\"priority\":2,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"http://goruyuln.cvfr4a.com/v3/youshi/\",\"spared_addr_code\":\"9911b971743c45d38bd12fcf9f1d85c8beaac7e3bbda067ba53f7f0f6ef00396f50b2416e1f833c4193602a3b6c45c3d\",\"tag\":\"4\",\"weight\":20},{\"auth\":\"session_id=T8tLH3l39hej&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&dev_id=8e.08-22.03-11512293&app_ver=54001&media_encrypted=0&main_addr=http://zenruk.rugo1o.com/v3/youshi/&spared_addr=http://zenruk.rugo1o.com/v3/youshi/&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=33D24693E159082D377A007554DE6EE4\",\"format\":\"\",\"id\":\"br_inter_zencdn\",\"id_code\":\"e558784fd558bdaab6841e0029fec0c7\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=m2_smjB4uUu991glkE5sH_720p&expired=1676366548&token=F1B56DB8CDAD98B384E41C96D4B4E0BB\",\"main_addr\":\"http://zenruk.rugo1o.com/v3/youshi/\",\"main_addr_code\":\"5c211e4b7aceb1a6a055a2e85872a754e18069e2dbc521ed6ab16e56bd0733aee61c9cd27ce3f7efdc88677e837fe8e0\",\"media_code\":\"m2_smjB4uUu991glkE5sH_720p\",\"priority\":3,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"http://zenruk.rugo1o.com/v3/youshi/\",\"spared_addr_code\":\"5c211e4b7aceb1a6a055a2e85872a754e18069e2dbc521ed6ab16e56bd0733aee61c9cd27ce3f7efdc88677e837fe8e0\",\"tag\":\"4\",\"weight\":0}],\"start\":0,\"timeout\":12000000000}",
+            "{\"app_ctx\":\"Live\",\"buss\":\"live\",\"delay\":15000000000,\"desc\":\"TV Brasil  Esperança\",\"lang\":\"\",\"program_code\":\"TVBrasil\",\"quality\":\"480p\",\"sources\":[{\"auth\":\"session_id=AUJpC8qKTOKB&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&ctrl_type=stb&dev_id=8e.08-22.03-11512293&app_ver=54001&group=1da45f1b165dbd6400151ff26a4b3a00&media_encrypted=0&cdn_type=1&main_addr=bramslb.abzhlslb.com&spared_addr=mslb.ttuvc.com&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=E6411383D6A3DC22EED72E87F1E500A9\",\"format\":\"\",\"id\":\"br_live_other_local\",\"id_code\":\"e6fee46608f12e366ea86ada215b9fb3b7240a09d56abf60a7401c7f09d3c08e\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=4D127A13-C38C-43FA-9100-453FD2B19A93&expired=1676366548&token=805E6456C33D95CE56B253164DD77FD5\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"4D127A13-C38C-43FA-9100-453FD2B19A93\",\"priority\":1,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20},{\"auth\":\"session_id=rlFMTggiRhxL&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&dev_id=8e.08-22.03-11512293&app_ver=54001&media_encrypted=0&main_addr=http://goruyuln.cvfr4a.com/v3/youshi/&spared_addr=http://goruyuln.cvfr4a.com/v3/youshi/&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=1425767A5F244E6E588EB3A5E4A6FAE0\",\"format\":\"\",\"id\":\"br_inter_google_all\",\"id_code\":\"a422b0c901c9589c29a950667b1a90d78b42f551936b0acfdb6ee3735b3120cc\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=m2_wELX3b2rIQxpSkv7lC9ORcdY_720p&expired=1676366548&token=1043F3E6868E760AC6B6395003A2DEB8\",\"main_addr\":\"http://goruyuln.cvfr4a.com/v3/youshi/\",\"main_addr_code\":\"9911b971743c45d38bd12fcf9f1d85c8beaac7e3bbda067ba53f7f0f6ef00396f50b2416e1f833c4193602a3b6c45c3d\",\"media_code\":\"m2_wELX3b2rIQxpSkv7lC9ORcdY_720p\",\"priority\":2,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"http://goruyuln.cvfr4a.com/v3/youshi/\",\"spared_addr_code\":\"9911b971743c45d38bd12fcf9f1d85c8beaac7e3bbda067ba53f7f0f6ef00396f50b2416e1f833c4193602a3b6c45c3d\",\"tag\":\"4\",\"weight\":20},{\"auth\":\"session_id=T8tLH3l39hej&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&dev_id=8e.08-22.03-11512293&app_ver=54001&media_encrypted=0&main_addr=http://zenruk.rugo1o.com/v3/youshi/&spared_addr=http://zenruk.rugo1o.com/v3/youshi/&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=33D24693E159082D377A007554DE6EE4\",\"format\":\"\",\"id\":\"br_inter_zencdn\",\"id_code\":\"e558784fd558bdaab6841e0029fec0c7\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=m2_wELX3b2rIQxpSkv7lC9ORcdY_720p&expired=1676366548&token=1043F3E6868E760AC6B6395003A2DEB8\",\"main_addr\":\"http://zenruk.rugo1o.com/v3/youshi/\",\"main_addr_code\":\"5c211e4b7aceb1a6a055a2e85872a754e18069e2dbc521ed6ab16e56bd0733aee61c9cd27ce3f7efdc88677e837fe8e0\",\"media_code\":\"m2_wELX3b2rIQxpSkv7lC9ORcdY_720p\",\"priority\":3,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"http://zenruk.rugo1o.com/v3/youshi/\",\"spared_addr_code\":\"5c211e4b7aceb1a6a055a2e85872a754e18069e2dbc521ed6ab16e56bd0733aee61c9cd27ce3f7efdc88677e837fe8e0\",\"tag\":\"4\",\"weight\":0}],\"start\":0,\"timeout\":12000000000}",
+            "{\"app_ctx\":\"Live\",\"buss\":\"live\",\"delay\":15000000000,\"desc\":\"TV Senado\",\"lang\":\"\",\"program_code\":\"tvsen ado\",\"quality\":\"480p\",\"sources\":[{\"auth\":\"session_id=AUJpC8qKTOKB&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&ctrl_type=stb&dev_id=8e.08-22.03-11512293&app_ver=54001&group=1da45f1b165dbd6400151ff26a4b3a00&media_encrypted=0&cdn_type=1&main_addr=bramslb.abzhlslb.com&spared_addr=mslb.ttuvc.com&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=E6411383D6A3DC22EED72E87F1E500A9\",\"format\":\"\",\"id\":\"br_live_other_local\",\"id_code\":\"e6fee46608f12e366ea86ada215b9fb3b7240a09d56abf60a7401c7f09d3c08e\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=20F71D57-4E89-422B-99d2-554FD865A55E&expired=1676366548&token=A5DAE03B18668F3D5A5162C9451C8DE5\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"20F71D57-4E89-422B-99d2-554FD865A55E\",\"priority\":1,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20},{\"auth\":\"session_id=rlFMTggiRhxL&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&dev_id=8e.08-22.03-11512293&app_ver=54001&media_encrypted=0&main_addr=http://goruyuln.cvfr4a.com/v3/youshi/&spared_addr=http://goruyuln.cvfr4a.com/v3/youshi/&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=1425767A5F244E6E588EB3A5E4A6FAE0\",\"format\":\"\",\"id\":\"br_inter_google_all\",\"id_code\":\"a422b0c901c9589c29a950667b1a90d78b42f551936b0acfdb6ee3735b3120cc\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=m4_Pu6pRskc1ilGxJaKFgNeWqCO_720p&expired=1676366548&token=7ADB834A179C8BEC1DB1C4BC1AB3E1CC\",\"main_addr\":\"http://goruyuln.cvfr4a.com/v3/youshi/\",\"main_addr_code\":\"9911b971743c45d38bd12fcf9f1d85c8beaac7e3bbda067ba53f7f0f6ef00396f50b2416e1f833c4193602a3b6c45c3d\",\"media_code\":\"m4_Pu6pRskc1ilGxJaKFgNeWqCO_720p\",\"priority\":2,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"http://goruyuln.cvfr4a.com/v3/youshi/\",\"spared_addr_code\":\"9911b971743c45d38bd12fcf9f1d85c8beaac7e3bbda067ba53f7f0f6ef00396f50b2416e1f833c4193602a3b6c45c3d\",\"tag\":\"4\",\"weight\":20},{\"auth\":\"session_id=T8tLH3l39hej&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&dev_id=8e.08-22.03-11512293&app_ver=54001&media_encrypted=0&main_addr=http://zenruk.rugo1o.com/v3/youshi/&spared_addr=http://zenruk.rugo1o.com/v3/youshi/&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=33D24693E159082D377A007554DE6EE4\",\"format\":\"\",\"id\":\"br_inter_zencdn\",\"id_code\":\"e558784fd558bdaab6841e0029fec0c7\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=m4_Pu6pRskc1ilGxJaKFgNeWqCO_720p&expired=1676366548&token=7ADB834A179C8BEC1DB1C4BC1AB3E1CC\",\"main_addr\":\"http://zenruk.rugo1o.com/v3/youshi/\",\"main_addr_code\":\"5c211e4b7aceb1a6a055a2e85872a754e18069e2dbc521ed6ab16e56bd0733aee61c9cd27ce3f7efdc88677e837fe8e0\",\"media_code\":\"m4_Pu6pRskc1ilGxJaKFgNeWqCO_720p\",\"priority\":3,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"http://zenruk.rugo1o.com/v3/youshi/\",\"spared_addr_code\":\"5c211e4b7aceb1a6a055a2e85872a754e18069e2dbc521ed6ab16e56bd0733aee61c9cd27ce3f7efdc88677e837fe8e0\",\"tag\":\"4\",\"weight\":0}],\"start\":0,\"timeout\":12000000000}",
+            "{\"app_ctx\":\"Live\",\"buss\":\"live\",\"delay\":15000000000,\"desc\":\"TV Justica\",\"lang\":\"\",\"program_code\":\"tvjustica\",\"quality\":\"480p\",\"sources\":[{\"auth\":\"session_id=AUJpC8qKTOKB&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&ctrl_type=stb&dev_id=8e.08-22.03-11512293&app_ver=54001&group=1da45f1b165dbd6400151ff26a4b3a00&media_encrypted=0&cdn_type=1&main_addr=bramslb.abzhlslb.com&spared_addr=mslb.ttuvc.com&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=E6411383D6A3DC22EED72E87F1E500A9\",\"format\":\"\",\"id\":\"br_live_other_local\",\"id_code\":\"e6fee46608f12e366ea86ada215b9fb3b7240a09d56abf60a7401c7f09d3c08e\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=E4A60DDB-6B9E-48E0-9c8a-1B0AFC747BA4&expired=1676366548&token=2E1BA92F588361218FD49B525EFEE2CA\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"E4A60DDB-6B9E-48E0-9c8a-1B0AFC747BA4\",\"priority\":1,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20},{\"auth\":\"session_id=rlFMTggiRhxL&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&dev_id=8e.08-22.03-11512293&app_ver=54001&media_encrypted=0&main_addr=http://goruyuln.cvfr4a.com/v3/youshi/&spared_addr=http://goruyuln.cvfr4a.com/v3/youshi/&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=1425767A5F244E6E588EB3A5E4A6FAE0\",\"format\":\"\",\"id\":\"br_inter_google_all\",\"id_code\":\"a422b0c901c9589c29a950667b1a90d78b42f551936b0acfdb6ee3735b3120cc\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=m3_3fFPkbQ8ScCRt9wlZNH0ie6M_720p&expired=1676366548&token=698AE03D43B160061217006F8B0FC99B\",\"main_addr\":\"http://goruyuln.cvfr4a.com/v3/youshi/\",\"main_addr_code\":\"9911b971743c45d38bd12fcf9f1d85c8beaac7e3bbda067ba53f7f0f6ef00396f50b2416e1f833c4193602a3b6c45c3d\",\"media_code\":\"m3_3fFPkbQ8ScCRt9wlZNH0ie6M_720p\",\"priority\":2,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"http://goruyuln.cvfr4a.com/v3/youshi/\",\"spared_addr_code\":\"9911b971743c45d38bd12fcf9f1d85c8beaac7e3bbda067ba53f7f0f6ef00396f50b2416e1f833c4193602a3b6c45c3d\",\"tag\":\"4\",\"weight\":20},{\"auth\":\"session_id=T8tLH3l39hej&app_id=com.interactive.brasiliptv&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=218.18.7.49&dev_id=8e.08-22.03-11512293&app_ver=54001&media_encrypted=0&main_addr=http://zenruk.rugo1o.com/v3/youshi/&spared_addr=http://zenruk.rugo1o.com/v3/youshi/&user_id=70157234&expired=1675776321&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=33D24693E159082D377A007554DE6EE4\",\"format\":\"\",\"id\":\"br_inter_zencdn\",\"id_code\":\"e558784fd558bdaab6841e0029fec0c7\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=m3_3fFPkbQ8ScCRt9wlZNH0ie6M_720p&expired=1676366548&token=698AE03D43B160061217006F8B0FC99B\",\"main_addr\":\"http://zenruk.rugo1o.com/v3/youshi/\",\"main_addr_code\":\"5c211e4b7aceb1a6a055a2e85872a754e18069e2dbc521ed6ab16e56bd0733aee61c9cd27ce3f7efdc88677e837fe8e0\",\"media_code\":\"m3_3fFPkbQ8ScCRt9wlZNH0ie6M_720p\",\"priority\":3,\"quality\":\"480p\",\"rule_id_code\":\"cba60ae4d5f7654fe81d9564fa878b7a\",\"spared_addr\":\"http://zenruk.rugo1o.com/v3/youshi/\",\"spared_addr_code\":\"5c211e4b7aceb1a6a055a2e85872a754e18069e2dbc521ed6ab16e56bd0733aee61c9cd27ce3f7efdc88677e837fe8e0\",\"tag\":\"4\",\"weight\":0}],\"start\":0,\"timeout\":12000000000}"
+    };
+
+    //add: ranger program code
+    private static final String[] Live_Program_Code = {
+            "Cançãonova",
+            "58801347516903245112223793570182",
+            "DestaquesdaCopadoNordeste_720p",
+            "TVBrasil",
+            "tvsen ado",
+            "tvjustica"
+    };
+
+    private static final String[] Live_Program_Desc = {
+            "Cancao Nova",
+            "BrasilTV MOSAICO",
+            "Destaques da Copa do Nordeste",
+            "TV Brasil  Esperança",
+            "TV Senado",
+            "TV Justica"
+    };
+
+    private String[] Vod_ProgramInfo_Json = {
+            "{\"app_ctx\":\"vod\",\"buss\":\"vod\",\"delay\":15000000000,\"desc\":\"Âya to majo\",\"lang\":\"por,jpn\",\"program_code\":\"152DF1FC2DD69580776BFA13E0EF9C8C\",\"quality\":\"1080p\",\"sources\":[{\"auth\":\"session_id=DeVyMJ5tyjWy&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&ctrl_type=stb&client_ip=116.30.199.35&main_addr=bramslb.abzhlslb.com&cdn_type=1&spared_addr=mslb.ttuvc.com&media_encrypted=0&group=a02d548b90a53d65e135c993439c6ed4&user_id=70157234&app_ver=54001&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&expired=1675780110&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=2B215EEDC2020CCC5FDA59E95D36F275\",\"format\":\"\",\"id\":\"br_vod_vivo_local\",\"id_code\":\"0435cfdc2f9ca55797d0fa646ed11689204612c74a2bf93da9e19212a13df3da\",\"lang\":\"por,jpn\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=5ECDF91380484D429F530CB1DED133CF&expired=1675852166&token=4DE6684F2D501DBD6F29A48F2C290B24\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"5ECDF91380484D429F530CB1DED133CF\",\"priority\":1,\"quality\":\"1080p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20},{\"auth\":\"session_id=sl571BEPb9nI&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&ctrl_type=stb&client_ip=116.30.199.35&main_addr=http://lmvd.whitl12vd.com&cdn_type=4&spared_addr=http://lmvd.whitl12vd.com&media_encrypted=0&group=a02d548b90a53d65e135c993439c6ed4&user_id=70157234&app_ver=54001&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&expired=1675780110&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=FB6151E969A100AE6A1076B8E3AE3667\",\"format\":\"\",\"id\":\"vod_aws_lambda_new\",\"id_code\":\"9e03f46c7ca6e7e137c83c6f615e72cf9497419a719fd565220f62016c4991f5\",\"lang\":\"por,jpn\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=5ECDF91380484D429F530CB1DED133CF&expired=1675852166&token=4DE6684F2D501DBD6F29A48F2C290B24\",\"main_addr\":\"http://lmvd.whitl12vd.com\",\"main_addr_code\":\"5beb883ca6aceacdd47a9132e4b61a11e7db901ac800007c7433a87bbbf709ed\",\"media_code\":\"5ECDF91380484D429F530CB1DED133CF\",\"priority\":2,\"quality\":\"1080p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"http://lmvd.whitl12vd.com\",\"spared_addr_code\":\"5beb883ca6aceacdd47a9132e4b61a11e7db901ac800007c7433a87bbbf709ed\",\"tag\":\"4\",\"weight\":0},{\"auth\":\"session_id=DeVyMJ5tyjWy&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&ctrl_type=stb&client_ip=116.30.199.35&main_addr=bramslb.abzhlslb.com&cdn_type=1&spared_addr=mslb.ttuvc.com&media_encrypted=0&group=a02d548b90a53d65e135c993439c6ed4&user_id=70157234&app_ver=54001&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&expired=1675780110&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=2B215EEDC2020CCC5FDA59E95D36F275\",\"format\":\"\",\"id\":\"br_vod_vivo_local\",\"id_code\":\"0435cfdc2f9ca55797d0fa646ed11689204612c74a2bf93da9e19212a13df3da\",\"lang\":\"unkown\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=63DDCB7A427C46F38027B615FC9A832B&expired=1675852166&token=478C3097F54E999731FD8D826A6AF1A1\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"63DDCB7A427C46F38027B615FC9A832B\",\"priority\":1,\"quality\":\"1080p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20}],\"start\":0,\"timeout\":12000000000}",
+            "{\"app_ctx\":\"vod\",\"buss\":\"vod\",\"delay\":15000000000,\"desc\":\"Rio Sangrento\",\"lang\":\"por\",\"program_code\":\"F3801D00DE4511E9B458AC1F6B68ECB2\",\"quality\":\"720p\",\"sources\":[{\"auth\":\"session_id=DeVyMJ5tyjWy&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&ctrl_type=stb&client_ip=116.30.199.35&main_addr=bramslb.abzhlslb.com&cdn_type=1&spared_addr=mslb.ttuvc.com&media_encrypted=0&group=a02d548b90a53d65e135c993439c6ed4&user_id=70157234&app_ver=54001&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&expired=1675780110&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=2B215EEDC2020CCC5FDA59E95D36F275\",\"format\":\"\",\"id\":\"br_vod_vivo_local\",\"id_code\":\"0435cfdc2f9ca55797d0fa646ed11689204612c74a2bf93da9e19212a13df3da\",\"lang\":\"por\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=EBA087BE86AA44D58835E865314AD365&expired=1675852486&token=07E1703C9325D1C1F4B11736A5DA3CB7\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"EBA087BE86AA44D58835E865314AD365\",\"priority\":1,\"quality\":\"720p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20},{\"auth\":\"session_id=sl571BEPb9nI&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&ctrl_type=stb&client_ip=116.30.199.35&main_addr=http://lmvd.whitl12vd.com&cdn_type=4&spared_addr=http://lmvd.whitl12vd.com&media_encrypted=0&group=a02d548b90a53d65e135c993439c6ed4&user_id=70157234&app_ver=54001&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&expired=1675780110&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=FB6151E969A100AE6A1076B8E3AE3667\",\"format\":\"\",\"id\":\"vod_aws_lambda_new\",\"id_code\":\"9e03f46c7ca6e7e137c83c6f615e72cf9497419a719fd565220f62016c4991f5\",\"lang\":\"por\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=EBA087BE86AA44D58835E865314AD365&expired=1675852486&token=07E1703C9325D1C1F4B11736A5DA3CB7\",\"main_addr\":\"http://lmvd.whitl12vd.com\",\"main_addr_code\":\"5beb883ca6aceacdd47a9132e4b61a11e7db901ac800007c7433a87bbbf709ed\",\"media_code\":\"EBA087BE86AA44D58835E865314AD365\",\"priority\":2,\"quality\":\"720p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"http://lmvd.whitl12vd.com\",\"spared_addr_code\":\"5beb883ca6aceacdd47a9132e4b61a11e7db901ac800007c7433a87bbbf709ed\",\"tag\":\"4\",\"weight\":0}],\"start\":0,\"timeout\":20000000000}",
+            "{\"app_ctx\":\"vod\",\"buss\":\"vod\",\"delay\":15000000000,\"desc\":\"Vale dos Cangurus\",\"lang\":\"por\",\"program_code\":\"F826F19C23DAD9F933C41C3FC140B359\",\"quality\":\"1080p\",\"sources\":[{\"auth\":\"session_id=DeVyMJ5tyjWy&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&ctrl_type=stb&client_ip=116.30.199.35&main_addr=bramslb.abzhlslb.com&cdn_type=1&spared_addr=mslb.ttuvc.com&media_encrypted=0&group=a02d548b90a53d65e135c993439c6ed4&user_id=70157234&app_ver=54001&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&expired=1675780110&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=2B215EEDC2020CCC5FDA59E95D36F275\",\"format\":\"\",\"id\":\"br_vod_vivo_local\",\"id_code\":\"0435cfdc2f9ca55797d0fa646ed11689204612c74a2bf93da9e19212a13df3da\",\"lang\":\"por\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=E9D297728C6B42B7824AC1283CD8D5C5&expired=1675852576&token=F465A6E6091E28BC9D91D53808FFD6DD\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"E9D297728C6B42B7824AC1283CD8D5C5\",\"priority\":1,\"quality\":\"1080p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20},{\"auth\":\"session_id=sl571BEPb9nI&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&ctrl_type=stb&client_ip=116.30.199.35&main_addr=http://lmvd.whitl12vd.com&cdn_type=4&spared_addr=http://lmvd.whitl12vd.com&media_encrypted=0&group=a02d548b90a53d65e135c993439c6ed4&user_id=70157234&app_ver=54001&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&expired=1675780110&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=FB6151E969A100AE6A1076B8E3AE3667\",\"format\":\"\",\"id\":\"vod_aws_lambda_new\",\"id_code\":\"9e03f46c7ca6e7e137c83c6f615e72cf9497419a719fd565220f62016c4991f5\",\"lang\":\"por\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=E9D297728C6B42B7824AC1283CD8D5C5&expired=1675852576&token=F465A6E6091E28BC9D91D53808FFD6DD\",\"main_addr\":\"http://lmvd.whitl12vd.com\",\"main_addr_code\":\"5beb883ca6aceacdd47a9132e4b61a11e7db901ac800007c7433a87bbbf709ed\",\"media_code\":\"E9D297728C6B42B7824AC1283CD8D5C5\",\"priority\":2,\"quality\":\"1080p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"http://lmvd.whitl12vd.com\",\"spared_addr_code\":\"5beb883ca6aceacdd47a9132e4b61a11e7db901ac800007c7433a87bbbf709ed\",\"tag\":\"4\",\"weight\":0},{\"auth\":\"session_id=DeVyMJ5tyjWy&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&ctrl_type=stb&client_ip=116.30.199.35&main_addr=bramslb.abzhlslb.com&cdn_type=1&spared_addr=mslb.ttuvc.com&media_encrypted=0&group=a02d548b90a53d65e135c993439c6ed4&user_id=70157234&app_ver=54001&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&expired=1675780110&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=2B215EEDC2020CCC5FDA59E95D36F275\",\"format\":\"\",\"id\":\"br_vod_vivo_local\",\"id_code\":\"0435cfdc2f9ca55797d0fa646ed11689204612c74a2bf93da9e19212a13df3da\",\"lang\":\"por\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=2B42F4FBE21249D8AE36144C20A9E96E&expired=1675852576&token=BE1A9F854D7B5E12A226BB0702C2D6DA\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"2B42F4FBE21249D8AE36144C20A9E96E\",\"priority\":1,\"quality\":\"720p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20}],\"start\":0,\"timeout\":20000000000}",
+            "{\"app_ctx\":\"vod\",\"buss\":\"vod\",\"delay\":15000000000,\"desc\":\"Puss in Boots: The Last Wish\",\"lang\":\"por,eng\",\"program_code\":\"91FFFF4C59FCCBFC797C267D3CDC41A2\",\"quality\":\"1080p\",\"sources\":[{\"auth\":\"session_id=DeVyMJ5tyjWy&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&ctrl_type=stb&client_ip=116.30.199.35&main_addr=bramslb.abzhlslb.com&cdn_type=1&spared_addr=mslb.ttuvc.com&media_encrypted=0&group=a02d548b90a53d65e135c993439c6ed4&user_id=70157234&app_ver=54001&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&expired=1675780110&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=2B215EEDC2020CCC5FDA59E95D36F275\",\"format\":\"\",\"id\":\"br_vod_vivo_local\",\"id_code\":\"0435cfdc2f9ca55797d0fa646ed11689204612c74a2bf93da9e19212a13df3da\",\"lang\":\"por,eng\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=03DA8C112FA84F3296B4BBAC1FA73F53&expired=1675852665&token=B7DBDCE52AD46CE60EB6CF1E72AE71F1\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"03DA8C112FA84F3296B4BBAC1FA73F53\",\"priority\":1,\"quality\":\"1080p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20},{\"auth\":\"session_id=sl571BEPb9nI&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&ctrl_type=stb&client_ip=116.30.199.35&main_addr=http://lmvd.whitl12vd.com&cdn_type=4&spared_addr=http://lmvd.whitl12vd.com&media_encrypted=0&group=a02d548b90a53d65e135c993439c6ed4&user_id=70157234&app_ver=54001&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&expired=1675780110&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=FB6151E969A100AE6A1076B8E3AE3667\",\"format\":\"\",\"id\":\"vod_aws_lambda_new\",\"id_code\":\"9e03f46c7ca6e7e137c83c6f615e72cf9497419a719fd565220f62016c4991f5\",\"lang\":\"por,eng\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=03DA8C112FA84F3296B4BBAC1FA73F53&expired=1675852665&token=B7DBDCE52AD46CE60EB6CF1E72AE71F1\",\"main_addr\":\"http://lmvd.whitl12vd.com\",\"main_addr_code\":\"5beb883ca6aceacdd47a9132e4b61a11e7db901ac800007c7433a87bbbf709ed\",\"media_code\":\"03DA8C112FA84F3296B4BBAC1FA73F53\",\"priority\":2,\"quality\":\"1080p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"http://lmvd.whitl12vd.com\",\"spared_addr_code\":\"5beb883ca6aceacdd47a9132e4b61a11e7db901ac800007c7433a87bbbf709ed\",\"tag\":\"4\",\"weight\":0},{\"auth\":\"session_id=DeVyMJ5tyjWy&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&ctrl_type=stb&client_ip=116.30.199.35&main_addr=bramslb.abzhlslb.com&cdn_type=1&spared_addr=mslb.ttuvc.com&media_encrypted=0&group=a02d548b90a53d65e135c993439c6ed4&user_id=70157234&app_ver=54001&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&expired=1675780110&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=2B215EEDC2020CCC5FDA59E95D36F275\",\"format\":\"\",\"id\":\"br_vod_vivo_local\",\"id_code\":\"0435cfdc2f9ca55797d0fa646ed11689204612c74a2bf93da9e19212a13df3da\",\"lang\":\"por,eng\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=AB645C0D4893489BB9ABEF9355C1D495&expired=1675852665&token=AAEEC450B610755C5663152BBE9D5A6D\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"AB645C0D4893489BB9ABEF9355C1D495\",\"priority\":1,\"quality\":\"720p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20}],\"start\":0,\"timeout\":20000000000}",
+            "{\"app_ctx\":\"vod\",\"buss\":\"vod\",\"delay\":15000000000,\"desc\":\"Trap for Cinderella\",\"lang\":\"eng\",\"program_code\":\"253F0B2E98D711E9B0BAAC1F6B68ECB2\",\"quality\":\"720p\",\"sources\":[{\"auth\":\"session_id=DwwCrXccpzy5&media_encrypted=0&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=116.30.199.96&ctrl_type=stb&spared_addr=mslb.ttuvc.com&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&app_ver=54001&group=a02d548b90a53d65e135c993439c6ed4&cdn_type=1&main_addr=bramslb.abzhlslb.com&user_id=70157234&expired=1676461061&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=EB0785BA386A7C1C8D1658C6E8D8EFA2\",\"format\":\"\",\"id\":\"br_vod_vivo_local\",\"id_code\":\"0435cfdc2f9ca55797d0fa646ed11689204612c74a2bf93da9e19212a13df3da\",\"lang\":\"eng\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=D43CF8EA5D0342CA83A9DA70DCFD60C7&expired=1676533197&token=08A50C5BA6B52A38DCD1B46A33AF897B\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"D43CF8EA5D0342CA83A9DA70DCFD60C7\",\"priority\":1,\"quality\":\"720p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20},{\"auth\":\"session_id=nbFWfIwCXkhc&media_encrypted=0&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=116.30.199.96&ctrl_type=stb&spared_addr=http://lmvd.whitl12vd.com&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&app_ver=54001&group=a02d548b90a53d65e135c993439c6ed4&cdn_type=4&main_addr=http://lmvd.whitl12vd.com&user_id=70157234&expired=1676461061&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=40D0CF64F314D48C7D4DD303D36EFEC3\",\"format\":\"\",\"id\":\"vod_aws_lambda_new\",\"id_code\":\"9e03f46c7ca6e7e137c83c6f615e72cf9497419a719fd565220f62016c4991f5\",\"lang\":\"eng\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=D43CF8EA5D0342CA83A9DA70DCFD60C7&expired=1676533197&token=08A50C5BA6B52A38DCD1B46A33AF897B\",\"main_addr\":\"http://lmvd.whitl12vd.com\",\"main_addr_code\":\"5beb883ca6aceacdd47a9132e4b61a11e7db901ac800007c7433a87bbbf709ed\",\"media_code\":\"D43CF8EA5D0342CA83A9DA70DCFD60C7\",\"priority\":2,\"quality\":\"720p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"http://lmvd.whitl12vd.com\",\"spared_addr_code\":\"5beb883ca6aceacdd47a9132e4b61a11e7db901ac800007c7433a87bbbf709ed\",\"tag\":\"4\",\"weight\":0},{\"auth\":\"session_id=DwwCrXccpzy5&media_encrypted=0&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&client_ip=116.30.199.96&ctrl_type=stb&spared_addr=mslb.ttuvc.com&app_id=com.interactive.brasiliptv&dev_id=8e.08-22.03-11512293&app_ver=54001&group=a02d548b90a53d65e135c993439c6ed4&cdn_type=1&main_addr=bramslb.abzhlslb.com&user_id=70157234&expired=1676461061&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=EB0785BA386A7C1C8D1658C6E8D8EFA2\",\"format\":\"\",\"id\":\"br_vod_vivo_local\",\"id_code\":\"0435cfdc2f9ca55797d0fa646ed11689204612c74a2bf93da9e19212a13df3da\",\"lang\":\"eng\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=FA9CCCAB57E84C8BB56573C3E097EA42&expired=1676533197&token=3C8BA07BB230F50835BFD9F424676C08\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"FA9CCCAB57E84C8BB56573C3E097EA42\",\"priority\":1,\"quality\":\"720p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20}],\"start\":0,\"timeout\":12000000000}",
+            "{\"app_ctx\":\"vod\",\"buss\":\"vod\",\"delay\":15000000000,\"desc\":\"Trolls: TrollsTopia Temp.4\",\"lang\":\"und\",\"program_code\":\"F58E5D50528D11ECB13E001E67221C7E\",\"quality\":\"720p\",\"sources\":[{\"auth\":\"dev_id=8e.08-22.03-11512293&ctrl_type=stb&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&group=a02d548b90a53d65e135c993439c6ed4&client_ip=116.30.199.96&cdn_type=1&main_addr=bramslb.abzhlslb.com&spared_addr=mslb.ttuvc.com&session_id=diBdAUBSokCO&media_encrypted=0&app_id=com.interactive.brasiliptv&user_id=70157234&app_ver=54001&expired=1676467047&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=240D01C575C0FF542363133ED9890ED0\",\"format\":\"\",\"id\":\"br_vod_vivo_local\",\"id_code\":\"0435cfdc2f9ca55797d0fa646ed11689204612c74a2bf93da9e19212a13df3da\",\"lang\":\"und\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=F602E486528D11ECB13E001E67221C7E&expired=1676539419&token=3C92791B45FDA51B63EC274F67D48FA7\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"F602E486528D11ECB13E001E67221C7E\",\"priority\":1,\"quality\":\"720p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20},{\"auth\":\"dev_id=8e.08-22.03-11512293&ctrl_type=stb&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&group=a02d548b90a53d65e135c993439c6ed4&client_ip=116.30.199.96&cdn_type=4&main_addr=http://lmvd.whitl12vd.com&spared_addr=http://lmvd.whitl12vd.com&session_id=2QgKl1ENamUU&media_encrypted=0&app_id=com.interactive.brasiliptv&user_id=70157234&app_ver=54001&expired=1676467047&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=16BDEB2A8831A275BFA08175149BD057\",\"format\":\"\",\"id\":\"vod_aws_lambda_new\",\"id_code\":\"9e03f46c7ca6e7e137c83c6f615e72cf9497419a719fd565220f62016c4991f5\",\"lang\":\"und\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=F602E486528D11ECB13E001E67221C7E&expired=1676539419&token=3C92791B45FDA51B63EC274F67D48FA7\",\"main_addr\":\"http://lmvd.whitl12vd.com\",\"main_addr_code\":\"5beb883ca6aceacdd47a9132e4b61a11e7db901ac800007c7433a87bbbf709ed\",\"media_code\":\"F602E486528D11ECB13E001E67221C7E\",\"priority\":2,\"quality\":\"720p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"http://lmvd.whitl12vd.com\",\"spared_addr_code\":\"5beb883ca6aceacdd47a9132e4b61a11e7db901ac800007c7433a87bbbf709ed\",\"tag\":\"4\",\"weight\":0},{\"auth\":\"dev_id=8e.08-22.03-11512293&ctrl_type=stb&auth_id=70157234_com.interactive.brasiliptv_cloud-c2-redis_0&group=a02d548b90a53d65e135c993439c6ed4&client_ip=116.30.199.96&cdn_type=1&main_addr=bramslb.abzhlslb.com&spared_addr=mslb.ttuvc.com&session_id=diBdAUBSokCO&media_encrypted=0&app_id=com.interactive.brasiliptv&user_id=70157234&app_ver=54001&expired=1676467047&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&token=240D01C575C0FF542363133ED9890ED0\",\"format\":\"\",\"id\":\"br_vod_vivo_local\",\"id_code\":\"0435cfdc2f9ca55797d0fa646ed11689204612c74a2bf93da9e19212a13df3da\",\"lang\":\"und\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=426BAABE528F11ECB13E001E67221C7E&expired=1676539419&token=CC3B9C246568851A109F3CC63512E878\",\"main_addr\":\"bramslb.abzhlslb.com\",\"main_addr_code\":\"4b8c8196ffbc5747dd3cc2a5d879cdaf82376eed75d5b41a50f2dbf7e75d654d\",\"media_code\":\"426BAABE528F11ECB13E001E67221C7E\",\"priority\":1,\"quality\":\"480p\",\"rule_id_code\":\"2eadb263b752e203c110212eb68cfe09\",\"spared_addr\":\"mslb.ttuvc.com\",\"spared_addr_code\":\"1dbd17c791bccf442e35ca7eda79eff5\",\"tag\":\"1\",\"weight\":20}],\"start\":0,\"timeout\":20000000000}"
+    };
+
+    private static final String[] Vod_Program_Code = {
+            "152DF1FC2DD69580776BFA13E0EF9C8C",
+            "F3801D00DE4511E9B458AC1F6B68ECB2",
+            "F826F19C23DAD9F933C41C3FC140B359",
+            "91FFFF4C59FCCBFC797C267D3CDC41A2",
+            "253F0B2E98D711E9B0BAAC1F6B68ECB2",
+            "F58E5D50528D11ECB13E001E67221C7E"
+    };
+
+    private static final String[] Vod_Program_Desc = {
+            "Âya to majo",
+            "Rio Sangrento",
+            "Vale dos Cangurus",
+            "Puss in Boots: The Last Wish",
+            "Trap for Cinderella",
+            "Trolls: TrollsTopia Temp.4"
+    };
 
     // mCurrentState is a VideoView object's current state.
     // mTargetState is the state that a method caller intends to reach.
@@ -107,6 +178,8 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
     private boolean mCanPause = true;
     private boolean mCanSeekBack = true;
     private boolean mCanSeekForward = true;
+    private int mInstance = 0;//add: ranger instance
+    private String mExpiredTime = "";//add: ranger expired time
 
     /** Subtitle rendering widget overlaid on top of the video. */
     // private RenderingWidget mSubtitleWidget;
@@ -135,6 +208,17 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
     private boolean mIsEnableHw = false;
     private TextView mTvLog;//add: view log
     private int mTouchCount = 0;
+    private boolean mIsRangerMode = false;//add: enable/disable ranger
+    private RangerJniImpl mRangerJniImpl = null;//add: ranger
+    private int mRangerSourceIndex = 0;
+    private String mRangerPlayTag = "";
+    private Handler mRangerHandler;//add: ranger test
+    private Runnable mRangerTask;
+    private Handler mRangerLogHandler;//add: ranger log
+    private Runnable mRangerLogTask;
+    private String mRangerDashBoard = "";//add: playinfo
+    private int mSourcePriority = 0;//add: icdn or aws
+    private String mTrackerList = "199.189.86.249:5333,5.180.41.123:5333";
 
     public IjkVideoView(Context context) {
         super(context);
@@ -168,6 +252,255 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
 
     public void setEnableHw(boolean isEnableHw) {
         mIsEnableHw = isEnableHw;
+    }
+
+    /* add: test ranger */
+    private void initRangerTask() {
+        mRangerHandler = new Handler();
+        mRangerTask = new Runnable() {
+            @Override
+            public void run() {
+                int delayTime = (int)(Math.random() * 50 * 1000);
+                Log.d(TAG, "switch source, delayTime: " + delayTime);
+                mRangerHandler.postDelayed(this, delayTime);
+                switchRangerStream(mRangerSourceIndex, mRangerSourceIndex + 1);
+            }
+        };
+    }
+
+    /* add: ranger */
+    public void releaseRangerTask() {
+        if(mRangerHandler != null) {
+            mRangerHandler.removeCallbacksAndMessages(null);
+            mRangerHandler = null;
+        }
+    }
+
+    /* add: ranger playinfo */
+    private void initRangerLogTask() {
+        mRangerLogHandler = new Handler();
+        mRangerLogTask = new Runnable() {
+            @Override
+            public void run() {
+                mRangerLogHandler.postDelayed(this, 1000);
+                RangerBeanCallback rangerBeanCallback = new RangerBeanCallback() {
+                    @Override
+                    public void callback(PlayInfo result) {
+                        if(result == null) return;
+                        Log.d(TAG, "getPullStreamState res: " + result.toString());
+                        mRangerDashBoard = result.getDashboard();
+                    }
+                };
+                if(mRangerPlayTag.equals("vod"))
+                    mRangerJniImpl.getStreamState(mInstance, Vod_Program_Code[mRangerSourceIndex - 1], rangerBeanCallback);
+                else if(mRangerPlayTag.equals("live"))
+                    mRangerJniImpl.getStreamState(mInstance, Live_Program_Code[mRangerSourceIndex - 1], rangerBeanCallback);
+            }
+        };
+    }
+
+    public void releaseRangerLogTask() {
+        if(mRangerLogTask != null) {
+            mRangerLogHandler.removeCallbacksAndMessages(null);
+            mRangerLogHandler = null;
+        }
+    }
+
+    public String getDashBoard() {
+        return mRangerDashBoard;
+    }
+
+    /* add: ranger expired time */
+    private void calcExpiredTime(String timeFormat) {
+        DateCalc dateCalc = new DateCalc();
+        dateCalc.setTimeFormat(timeFormat);
+        mExpiredTime = dateCalc.date2TimeStamp(dateCalc.getExpiredTime());
+    }
+
+    /* add: ranger json */
+    private void updateVodJson(int index) {
+        String auth_salt = "C3D758E0BA554F9DAA9BC54F58889A5418C0E53A6E7442AD840B59543442BB31";
+        String license_salt = "U2RFXEeR4oPmdPlQoPGvG7hGDr0p4zd7QEWYTkjgtp5Q6nVOf6p6s8txNTfjV6i4";
+        String new_expired = "expired=" + mExpiredTime;
+        Gson gson = new Gson();
+        ProgramInfo programInfo = gson.fromJson(Vod_ProgramInfo_Json[index - 1],ProgramInfo.class);
+        List<Sources> sources = programInfo.getSources();
+        for(int j = 0; j < sources.size(); j++) {
+            /************ 处理auth **********/
+            String auth = sources.get(j).getAuth();
+            auth = auth.replaceAll("expired=[0-9]+", new_expired);
+            auth = auth.replaceAll("(?<=dev_id=)[^&]*", sn);
+            auth = auth.replaceAll("(?<=user_id=)[^&]*", user_id);
+
+            String auth_md5Data = "";
+            String auth_token;
+            String auth_regex = "&token";
+            Pattern pattern = Pattern.compile(auth_regex);
+            Matcher matcher = pattern.matcher(auth);
+            if (matcher.find()) {
+                int start = matcher.start();
+                String before_token = auth.substring(0, start);
+                auth_md5Data = before_token + auth_salt;
+            }
+            auth_token = MD5Utils.string2MD5(auth_md5Data);
+
+            String new_token = "token=" + auth_token;
+            String recalc_auth = auth.replaceAll("token=.*", new_token);
+            sources.get(j).setAuth(recalc_auth);//使修改后的auth在source中生效
+
+            /************ 处理license **********/
+            String license = sources.get(j).getLicense();
+            license = license.replaceAll("expired=[0-9]+", new_expired);
+            String license_md5Data = "";
+            String license_token;
+            String license_regex = "&token";
+            Pattern pattern2 = Pattern.compile(license_regex);
+            Matcher matcher2 = pattern2.matcher(license);
+            if (matcher2.find()) {
+                int start = matcher2.start();
+                String before_token = license.substring(0, start);
+                license_md5Data = before_token + license_salt;
+            }
+            license_token = MD5Utils.string2MD5(license_md5Data);
+
+            new_token = "token=" + license_token;
+            String recalc_license = license.replaceAll("token=.*", new_token);
+            sources.get(j).setLicense(recalc_license);//使修改后的license在source中生效
+
+            /************ 处理priority **********/
+            if(mSourcePriority == 1) {
+                int priority = sources.get(j).getPriority();
+                if(priority == 1) {
+                    sources.get(j).setPriority(2);
+                } else if(priority == 2) {
+                    sources.get(j).setPriority(1);
+                }
+            }
+        }
+        programInfo.setSources(sources);//使所有更改的sources生效
+        Vod_ProgramInfo_Json[index - 1] = gson.toJson(programInfo);
+    }
+
+    private void updateLiveJson(int index) {
+        String auth_salt = "C3D758E0BA554F9DAA9BC54F58889A5418C0E53A6E7442AD840B59543442BB31";
+        String license_salt = "U2RFXEeR4oPmdPlQoPGvG7hGDr0p4zd7QEWYTkjgtp5Q6nVOf6p6s8txNTfjV6i4";
+        String new_expired = "expired=" + mExpiredTime;
+        Gson gson = new Gson();
+        ProgramInfo programInfo = gson.fromJson(Live_ProgramInfo_Json[index - 1],ProgramInfo.class);
+        List<Sources> sources = programInfo.getSources();
+        for(int j = 0; j < sources.size(); j++) {
+            /************ 处理auth **********/
+            String auth = sources.get(j).getAuth();
+            auth = auth.replaceAll("expired=[0-9]+", new_expired);
+            auth = auth.replaceAll("(?<=dev_id=)[^&]*", sn);
+            auth = auth.replaceAll("(?<=user_id=)[^&]*", user_id);
+
+            String auth_md5Data = "";
+            String auth_token;
+            String auth_regex = "&token";
+            Pattern pattern = Pattern.compile(auth_regex);
+            Matcher matcher = pattern.matcher(auth);
+            if (matcher.find()) {
+                int start = matcher.start();
+                String before_token = auth.substring(0, start);
+                auth_md5Data = before_token + auth_salt;
+            }
+            auth_token = MD5Utils.string2MD5(auth_md5Data);
+
+            String new_token = "token=" + auth_token;
+            String recalc_auth = auth.replaceAll("token=.*", new_token);
+            sources.get(j).setAuth(recalc_auth);//使修改后的auth在source中生效
+
+            /************ 处理license **********/
+            String license = sources.get(j).getLicense();
+            license = license.replaceAll("expired=[0-9]+", new_expired);
+            String license_md5Data = "";
+            String license_token;
+            String license_regex = "&token";
+            Pattern pattern2 = Pattern.compile(license_regex);
+            Matcher matcher2 = pattern2.matcher(license);
+            if (matcher2.find()) {
+                int start = matcher2.start();
+                String before_token = license.substring(0, start);
+                license_md5Data = before_token + license_salt;
+            }
+            license_token = MD5Utils.string2MD5(license_md5Data);
+
+            new_token = "token=" + license_token;
+            String recalc_license = license.replaceAll("token=.*", new_token);
+            sources.get(j).setLicense(recalc_license);//使修改后的license在source中生效
+
+            /************ 处理priority **********/
+            if(mSourcePriority == 1) {
+                int priority = sources.get(j).getPriority();
+                if(priority == 1) {
+                    sources.get(j).setPriority(3);
+                } else if(priority > 2) {
+                    sources.get(j).setPriority(1);
+                }
+            }
+        }
+        programInfo.setSources(sources);//使所有更改的sources生效
+        Live_ProgramInfo_Json[index - 1] = gson.toJson(programInfo);
+    }
+
+    /*** add: set ranger and start ***/
+    public void setRangerMode(boolean isRangerMode, IjkVideoView videoView, AppCompatActivity activity, String playTag, int sourceIndex, boolean enableP2P, int priority, String trackerList) {
+        mIsRangerMode = isRangerMode;
+        if(mIsRangerMode) {
+            user_id = String.valueOf(sn.hashCode() % (int)Math.pow(10, 8));
+            mSourcePriority = priority;
+            mRangerJniImpl = new RangerJniImpl(videoView);
+            mRangerJniImpl.setJniCallBack(activity);
+            String config_json;
+            if(enableP2P) {
+                //config_json = "{\"advertising_id\":\"\",\"android_id\":\"e3b3934db7f8e39a\",\"app\":\"com.interactive.brasiliptv\",\"app_version\":\"54001\",\"ca_info\":\"/data/user/0/com.interactive.brasiliptv/files/cacert.pem\",\"communication_key\":\"6a6f4d9f-69a9-43f3-9244-5012ba6d4ecc\",\"dev_id\":\"\",\"params\":\"exp=3&max_cartons_1min=2&max_carton_duration_1min=15&last_retries=5&svs_address=xsvs.vfltbr.com:18084&svs_address_spare=xsvs.evlslb.com:18084&live_pcdn_mode=p2sp&tracker_list=84.17.45.67:5333,199.189.86.249:5333,5.180.41.123:5333&vod_proxy=0&delay_ref=30&min_cache=15&max_cache=30&autodelay_icdn_min_delay=15&autodelay_icdn_max_delay=30&autodelay_icdn_enabled=1&http_stream_recv_timeout=13&blacklist_clear=1&source_weights_clear=1&source_weights_enabled=0&live_pcdn_xtimeout=2&blacklist_enabled=0&transmit_protocol=http&min_peers=8&max_peers=10&limit_min_rate=400000&star_proxy=1&mem_cache_enable=on&hls_min_cache=60&hls_max_cache=60&live_hls_pcdn_mode=p2sp&max_switch_sources=20&max_switch_source_round=10\",\"player\":\"ijk\",\"sn\":\"8e.08-22.03-11512293\",\"user_id\":\"70157234\"}";
+                config_json = "{\"advertising_id\":\"\",\"android_id\":\"e3b3934db7f8e39a\",\"app\":\"com.interactive.brasiliptv\",\"app_version\":\"54001\",\"ca_info\":\"/data/user/0/com.interactive.brasiliptv/files/cacert.pem\",\"communication_key\":\"6a6f4d9f-69a9-43f3-9244-5012ba6d4ecc\",\"dev_id\":\"\",\"params\":\"live_pcdn_mode=p2sp&tracker_list=199.189.86.249:5333,5.180.41.123:5333&delay_ref=30&min_cache=7&max_cache=30&live_hls_pcdn_mode=p2sp&star_proxy=1&mem_cache_enable=on&min_peers=8&max_peers=10&limit_min_rate=400000&source_weights_enabled=0&blacklist_enabled=0&transmit_protocol=cdp_2.0&max_switch_sources=20&max_switch_source_round=10\",\"player\":\"ijk\",\"sn\":\"" + sn + "\",\"user_id\":\"" + user_id + "\"}";
+            } else {
+                //config_json = "{\"advertising_id\":\"\",\"android_id\":\"e3b3934db7f8e39a\",\"app\":\"com.interactive.brasiliptv\",\"app_version\":\"54001\",\"ca_info\":\"/data/user/0/com.interactive.brasiliptv/files/cacert.pem\",\"communication_key\":\"6a6f4d9f-69a9-43f3-9244-5012ba6d4ecc\",\"dev_id\":\"\",\"params\":\"exp=3&max_cartons_1min=2&max_carton_duration_1min=15&last_retries=5&svs_address=xsvs.vfltbr.com:18084&svs_address_spare=xsvs.evlslb.com:18084&live_pcdn_mode=off&tracker_list=84.17.45.67:5333,199.189.86.249:5333,5.180.41.123:5333&vod_proxy=0&delay_ref=30&min_cache=15&max_cache=30&autodelay_icdn_min_delay=15&autodelay_icdn_max_delay=30&autodelay_icdn_enabled=1&http_stream_recv_timeout=13&blacklist_clear=1&source_weights_clear=1&source_weights_enabled=0&live_pcdn_xtimeout=2&blacklist_enabled=0&transmit_protocol=http&min_peers=0&max_peers=0&limit_min_rate=400000&star_proxy=1&mem_cache_enable=on&hls_min_cache=60&hls_max_cache=60&live_hls_pcdn_mode=off&max_switch_sources=20&max_switch_source_round=10\",\"player\":\"ijk\",\"sn\":\"" + sn + "\",\"user_id\":\"70157234\"}";
+                config_json = "{\"advertising_id\":\"\",\"android_id\":\"e3b3934db7f8e39a\",\"app\":\"com.interactive.brasiliptv\",\"app_version\":\"54001\",\"ca_info\":\"/data/user/0/com.interactive.brasiliptv/files/cacert.pem\",\"communication_key\":\"6a6f4d9f-69a9-43f3-9244-5012ba6d4ecc\",\"dev_id\":\"\",\"params\":\"live_pcdn_mode=off&tracker_list=199.189.86.249:5333,5.180.41.123:5333&delay_ref=30&min_cache=7&max_cache=30&live_hls_pcdn_mode=off&star_proxy=1&mem_cache_enable=on&min_peers=0&max_peers=0&limit_min_rate=400000&source_weights_enabled=0&blacklist_enabled=0&transmit_protocol=cdp_2.0&max_switch_sources=20&max_switch_source_round=10\",\"player\":\"ijk\",\"sn\":\"" + sn + "\",\"user_id\":\"" + user_id + "\"}";
+            }
+            if(!mTrackerList.equals(trackerList) && !trackerList.equals("")) {
+                config_json = config_json.replaceAll("(?<=tracker_list=)[^&]*", trackerList);
+            }
+            Log.i(TAG, "config json info: " + config_json);
+            NativeJni.getJni().setRangerConfig(config_json);
+            calcExpiredTime("yyyy-MM-dd HH:mm:ss");
+            if(playTag.equals("vod")) {
+                if(sourceIndex == 7) {
+                    sourceIndex = 1;
+                    updateVodJson(sourceIndex);
+                    mRangerJniImpl.prepareProgram(mInstance, Vod_Program_Code[sourceIndex - 1], Vod_ProgramInfo_Json[sourceIndex - 1]);
+                    mRangerSourceIndex = sourceIndex;
+                    initRangerTask();
+                    mRangerHandler.postDelayed(mRangerTask, 8000);
+                } else {
+                    updateVodJson(sourceIndex);
+                    mRangerJniImpl.prepareProgram(mInstance, Vod_Program_Code[sourceIndex - 1], Vod_ProgramInfo_Json[sourceIndex - 1]);
+                    Log.d(TAG, "programinfo json: " + Vod_ProgramInfo_Json[sourceIndex - 1]);
+                    mRangerSourceIndex = sourceIndex;
+                    addLogTv(mTvLog, "prepare vod program: " + sourceIndex + ". " + Vod_Program_Desc[sourceIndex - 1]);
+                }
+            }
+            else if(playTag.equals("live")) {
+                if(sourceIndex == 7) {
+                    sourceIndex = 1;
+                    updateLiveJson(sourceIndex);
+                    mRangerJniImpl.prepareProgram(mInstance, Live_Program_Code[sourceIndex - 1], Live_ProgramInfo_Json[sourceIndex - 1]);
+                    mRangerSourceIndex = sourceIndex;
+                    initRangerTask();
+                    mRangerHandler.postDelayed(mRangerTask, 8000);
+                } else {
+                    updateLiveJson(sourceIndex);
+                    mRangerJniImpl.prepareProgram(mInstance, Live_Program_Code[sourceIndex - 1], Live_ProgramInfo_Json[sourceIndex - 1]);
+                    mRangerSourceIndex = sourceIndex;
+                    addLogTv(mTvLog, "prepare live program: " + sourceIndex + ". " + Live_Program_Desc[sourceIndex - 1]);
+                }
+            }
+            mRangerPlayTag = playTag;
+            initRangerLogTask();
+            mRangerLogHandler.postDelayed(mRangerLogTask, 1000);
+        }
     }
 
     /*** add: view log ***/
@@ -330,6 +663,7 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
                 mHudViewHolder.setMediaPlayer(null);
             mCurrentState = STATE_IDLE;
             mTargetState = STATE_IDLE;
+            mHudViewHolder.setIsPrepared(false);//add: getDuration should int the right state
             AudioManager am = (AudioManager) mAppContext.getSystemService(Context.AUDIO_SERVICE);
             am.abandonAudioFocus(null);
         }
@@ -450,8 +784,20 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
             mPrepareEndTime = System.currentTimeMillis();
             mHudViewHolder.updateLoadCost(mPrepareEndTime - mPrepareStartTime);
             mCurrentState = STATE_PREPARED;
-            addLogTv(mTvLog, "prepared");
-            NativeJni.getJni().mediaPlayerEvent(1, "onPrepared", 0,0,0);//add: ranger mediaPlayerEvent
+            /****** add: ranger log ******/
+            if(mIsRangerMode) {
+                if(mRangerPlayTag.equals("vod")) {
+                    addLogTv(mTvLog, mRangerPlayTag + " program: " + mRangerSourceIndex + ". " + Vod_Program_Desc[mRangerSourceIndex - 1] + " prepared");
+                } else if(mRangerPlayTag.equals("live")) {
+                    addLogTv(mTvLog, mRangerPlayTag + " program: " + mRangerSourceIndex + ". " + Live_Program_Desc[mRangerSourceIndex - 1] + " prepared");
+                }
+            }
+            /*************************/
+            else
+                addLogTv(mTvLog, "prepared");
+            if(mIsRangerMode) {
+                mRangerJniImpl.notifyPlayerEvent("onPrepared", 0,0,0);//add: ranger mediaPlayerEvent
+            }
             // Get the capabilities of the player for this stream
             // REMOVED: Metadata
 
@@ -526,6 +872,8 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
                         mOnInfoListener.onInfo(mp, arg1, arg2);
                     }
                     addLogTv(mTvLog, "onInfo,what:" + arg1 + ",extra:" + arg2);
+                    if(mIsRangerMode)
+                        mRangerJniImpl.notifyPlayerEvent("onInfo", arg1,arg2,0);//add: ranger mediaPlayerEvent
                     switch (arg1) {
                         case IMediaPlayer.MEDIA_INFO_VIDEO_TRACK_LAGGING:
                             Log.d(TAG, "MEDIA_INFO_VIDEO_TRACK_LAGGING:");
@@ -751,6 +1099,26 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
             // REMOVED: release(true);
             releaseWithoutStop();
         }
+
+        @Override
+        public void onSurfaceUpdated(@NonNull IRenderView.ISurfaceHolder holder, long time) {//add: get frame(test)
+            /*if(time > 8400 && time < 8450) {
+                IRenderView render = holder.getRenderView();
+                if(render instanceof TextureRenderView) {
+                    TextureRenderView r = (TextureRenderView) render;
+                    Bitmap bm = r.getBitmap();
+                    File file = new File("/storage/emulated/0/frametmp/", "hwframe");
+                    try {
+                        FileOutputStream imgOut = new FileOutputStream(file);
+                        bm.compress(Bitmap.CompressFormat.JPEG, 80, imgOut);
+                        imgOut.flush();
+                        imgOut.close();
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }*/
+        }
     };
 
     public void releaseWithoutStop() {
@@ -836,6 +1204,12 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
                 }
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY) {
+                if(mIsRangerMode) {
+                    if(mRangerPlayTag.equals("live"))
+                        mRangerJniImpl.resumeProgram(mInstance, Live_Program_Code[mRangerSourceIndex - 1]);
+                    else if(mRangerPlayTag.equals("vod"))
+                        mRangerJniImpl.resumeProgram(mInstance, Vod_Program_Code[mRangerSourceIndex - 1]);
+                }
                 if (!mMediaPlayer.isPlaying()) {
                     start();
                     mMediaController.hide();
@@ -845,6 +1219,12 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
                     || keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE) {
                 if (mMediaPlayer.isPlaying()) {
                     pause();
+                    if(mIsRangerMode) {
+                        if(mRangerPlayTag.equals("live"))
+                            mRangerJniImpl.pauseProgram(mInstance, Live_Program_Code[mRangerSourceIndex - 1]);
+                        else if(mRangerPlayTag.equals("vod"))
+                            mRangerJniImpl.pauseProgram(mInstance, Vod_Program_Code[mRangerSourceIndex - 1]);
+                    }
                     mMediaController.show();
                 }
                 return true;
@@ -853,34 +1233,80 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
                 mMediaController.dispatchKeyEvent(event);
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_2) {
-                int audioTrackSize = 0;
-                ITrackInfo trackInfo[] = mMediaPlayer.getTrackInfo();
-                for(int i = 0; i < trackInfo.length; i++) {
-                    if(trackInfo[i].getTrackType() == ITrackInfo.MEDIA_TRACK_TYPE_AUDIO)
-                        audioTrackSize++;
+                if(mIsRangerMode) {
                 }
-                int curAudioTrack = mMediaPlayer.getSelectedTrack(ITrackInfo.MEDIA_TRACK_TYPE_AUDIO);
-                if(curAudioTrack >= audioTrackSize) {
-                    curAudioTrack = 1;
-                } else {
-                    curAudioTrack++;
-                }
-                mMediaPlayer.selectTrack(curAudioTrack);
-                return true;
-            } else if (keyCode == KeyEvent.KEYCODE_5) {//add: ranger switch program
-                switchRangerStream();
-            } else if (keyCode == KeyEvent.KEYCODE_3) {
-                NativeJni.getJni().getRangerVersion();
-            } else if (keyCode == KeyEvent.KEYCODE_4) {
-                RangerBeanCallback rangerBeanCallback = new RangerBeanCallback() {
-                    @Override
-                    public void callback(PlayInfo result) {
-                        if(result == null) return;
+                else {
+                    int audioTrackSize = 0;
+                    ITrackInfo trackInfo[] = mMediaPlayer.getTrackInfo();
+                    for(int i = 0; i < trackInfo.length; i++) {
+                        if(trackInfo[i].getTrackType() == ITrackInfo.MEDIA_TRACK_TYPE_AUDIO)
+                            audioTrackSize++;
                     }
-                };
-                NativeJni.getJni().getPullStreamState(1, "DestaquesdaCopadoNordeste_720p", rangerBeanCallback);
-            } else if (keyCode == KeyEvent.KEYCODE_1) {
-                NativeJni.getJni().switchQuality(1, "DestaquesdaCopadoNordeste_720p", "720p");
+                    int curAudioTrack = mMediaPlayer.getSelectedTrack(ITrackInfo.MEDIA_TRACK_TYPE_AUDIO);
+                    if(curAudioTrack >= audioTrackSize) {
+                        curAudioTrack = 1;
+                    } else {
+                        curAudioTrack++;
+                    }
+                    mMediaPlayer.selectTrack(curAudioTrack);
+                    return true;
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_8) {
+                if(mIsRangerMode) {
+                    RangerBeanCallback rangerBeanCallback = new RangerBeanCallback() {
+                        @Override
+                        public void callback(PlayInfo result) {
+                            if(result == null) return;
+                            Log.i(TAG, "getPullStreamState res: " + result.toString());
+                        }
+                    };
+                    if(mRangerPlayTag.equals("vod"))
+                        mRangerJniImpl.getStreamState(mInstance, Vod_Program_Code[mRangerSourceIndex - 1], rangerBeanCallback);
+                    else if(mRangerPlayTag.equals("live"))
+                        mRangerJniImpl.getStreamState(mInstance, Live_Program_Code[mRangerSourceIndex - 1], rangerBeanCallback);
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_4) {
+                if(mIsRangerMode) {
+                    if(mRangerPlayTag.equals("vod")) {
+                        long curPos = mMediaPlayer.getCurrentPosition();
+                        long desPos = curPos - 10 * 1000L;
+                        long bufferPos = mMediaPlayer.getBufferPosition();
+                        int internalSeek = bufferPos >= desPos ? 1 : 0;//back seek?
+                        NativeJni.getJni().seekStream(mInstance, Vod_Program_Code[mRangerSourceIndex - 1], desPos, (int)curPos, internalSeek, new RangerStrCallback() {
+                            @Override
+                            public void callback(String result) {
+                                seekTo((int)desPos);
+                            }
+                        });
+                    }
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_6) {
+                if(mIsRangerMode) {
+                    if(mRangerPlayTag.equals("vod")) {
+                        long curPos = mMediaPlayer.getCurrentPosition();
+                        long desPos = curPos + 10 * 1000L;
+                        long bufferPos = mMediaPlayer.getBufferPosition();
+                        int internalSeek = bufferPos >= desPos ? 1 : 0;
+                        NativeJni.getJni().seekStream(mInstance, Vod_Program_Code[mRangerSourceIndex - 1], desPos, (int)curPos, internalSeek, new RangerStrCallback() {
+                            @Override
+                            public void callback(String result) {
+                                seekTo((int)desPos);
+                            }
+                        });
+                    }
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_7) {
+                if(mIsRangerMode) {
+                    int targetSourceIndex = mRangerSourceIndex - 1;
+                    switchRangerStream(mRangerSourceIndex, targetSourceIndex);
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_9) {
+                if(mIsRangerMode) {
+                    int targetSourceIndex = mRangerSourceIndex + 1;
+                    switchRangerStream(mRangerSourceIndex, targetSourceIndex);
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_0) {//add: show media info
+                showMediaInfo();
             } else {
                 toggleMediaControlsVisiblity();
             }
@@ -889,11 +1315,29 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
         return super.onKeyDown(keyCode, event);
     }
 
-    private void switchRangerStream() {//add: ranger switch program
-        NativeJni.getJni().pausePullStream(1, "DestaquesdaCopadoNordeste_720p");
-        NativeJni.getJni().stopPullStream(1, "DestaquesdaCopadoNordeste_720p");
-        String programInfo_json = "{\"app_ctx\":\"Live\",\"buss\":\"live\",\"delay\":15000000000,\"desc\":\"TV Brasil  Esperança\",\"lang\":\"\",\"program_code\":\"TVBrasil\",\"quality\":\"480p\",\"sources\":[{\"auth\":\"session_id=bjWnAlpn0UWf&auth_id=70157234_com.interactive.brasiliptv&client_ip=218.18.4.86&ctrl_type=stb&app_id=com.interactive.brasiliptv&group=d831e466ea45a5daf6890805be1c263e&spared_addr=&media_encrypted=0&app_ver=53800&cdn_type=1&main_addr=lmslb.hkdfalk.com&user_id=70157234&dev_id=8e.08-22.03-11512293&expired=1667977384&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&play_limit=2&check_play_ip=true&token=87369E43FFA9AB2F3800D4E96E606619\",\"format\":\"\",\"id\":\"gaoq_slb_test\",\"id_code\":\"34ebf544d6a0008afa72f17b70333221\",\"lang\":\"\",\"license\":\"app_id=com.interactive.brasiliptv&tag=30a27705-8848-3fbd-afd6-9cfac1243da5&scheme=md5-01&media_code=4D127A13-C38C-43FA-9100-453FD2B19A93&expired=1668565934&token=C2624A95142C768D934B9EDF0222EBB2\",\"main_addr\":\"lmslb.hkdfalk.com\",\"main_addr_code\":\"619e08315152e15c9af7575ab6ddbd6e9dd65661848a69ee7d542cf1f2377b24\",\"media_code\":\"4D127A13-C38C-43FA-9100-453FD2B19A93\",\"priority\":1,\"quality\":\"480p\",\"rule_id_code\":\"f436108bbb4381b302eeebd380a8e0f5\",\"spared_addr\":\"\",\"spared_addr_code\":\"\",\"tag\":\"1\",\"weight\":0}],\"start\":0,\"timeout\":12000000000}";
-        NativeJni.getJni().prepareProgram(1, "TVBrasil", programInfo_json);
+    private void switchRangerStream(int curSourceIndex, int targetSourceIndex) {//add: ranger switch program
+        calcExpiredTime("yyyy-MM-dd HH:mm:ss");
+        if(mRangerPlayTag.equals("vod")) {
+            if(targetSourceIndex > 6)
+                targetSourceIndex = 1;
+            else if(targetSourceIndex < 1)
+                targetSourceIndex = 6;
+            updateVodJson(targetSourceIndex);
+            mRangerJniImpl.stopProgram(mInstance, Vod_Program_Code[curSourceIndex - 1]);
+            mRangerJniImpl.prepareProgram(mInstance, Vod_Program_Code[targetSourceIndex - 1], Vod_ProgramInfo_Json[targetSourceIndex - 1]);
+            addLogTv(mTvLog, "prepare vod program: " + targetSourceIndex + ". " + Vod_Program_Desc[targetSourceIndex - 1]);
+            mRangerSourceIndex = targetSourceIndex;
+        } else if(mRangerPlayTag.equals("live")) {
+            if(targetSourceIndex > 6)
+                targetSourceIndex = 1;
+            else if(targetSourceIndex < 1)
+                targetSourceIndex = 6;
+            updateLiveJson(targetSourceIndex);
+            mRangerJniImpl.stopProgram(mInstance, Live_Program_Code[curSourceIndex - 1]);
+            mRangerJniImpl.prepareProgram(mInstance, Live_Program_Code[targetSourceIndex - 1], Live_ProgramInfo_Json[targetSourceIndex - 1]);
+            addLogTv(mTvLog, "prepare live program: " + targetSourceIndex + ". " + Live_Program_Desc[targetSourceIndex - 1]);
+            mRangerSourceIndex = targetSourceIndex;
+        }
     }
 
     private void toggleMediaControlsVisiblity() {
@@ -1023,7 +1467,7 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
             IRenderView.AR_16_9_FIT_PARENT,
             IRenderView.AR_4_3_FIT_PARENT};
     private int mCurrentAspectRatioIndex = 0;
-    private int mCurrentAspectRatio = s_allAspectRatio[0];
+    private int mCurrentAspectRatio = s_allAspectRatio[1];//add: we can do select, fit parent or fill parent
 
     public int toggleAspectRatio() {
         mCurrentAspectRatioIndex++;
@@ -1149,7 +1593,7 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
                             return true;
                         }
                     });*/
-                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames",500);//add: switch audio stream
+                    //ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames",500);//add: switch audio stream
                     //ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", 200*1024);//add: buffer size
                     if (mManifestString != null) {
                         ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "iformat", "ijklas");
@@ -1187,11 +1631,21 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
                         ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "overlay-format", pixelFormat);
                     }
                     ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "framedrop", 1);
-                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", 0);
+                    //ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", 0);
 
                     ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "http-detect-range-support", 0);
 
                     ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip_loop_filter", 48);
+                    // add: cancel parallel download, ranger requires serial
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "http_multiple" , 0);
+                    // add: sync apk
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "http-detect-range-support", 0);
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip_loop_filter", 48);
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "live-streaming", 1);
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "delay-optimization", 1);
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", 1);
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "timeout", (long) 20 * 1000);
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "get-av-frame-timeout", (long)20 * 1000);
                 }
                 mediaPlayer = ijkMediaPlayer;
             }
@@ -1245,6 +1699,7 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
         int selectedSubtitleTrack = MediaPlayerCompat.getSelectedTrack(mMediaPlayer, ITrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT);
 
         TableLayoutBinder builder = new TableLayoutBinder(getContext());
+        builder.setTableLayoutColor(0xFF4A4949);//add: show media info
         builder.appendSection(R.string.mi_player);
         builder.appendRow2(R.string.mi_player, MediaPlayerCompat.getName(mMediaPlayer));
         builder.appendSection(R.string.mi_media);

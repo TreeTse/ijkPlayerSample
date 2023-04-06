@@ -6,6 +6,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class CallMethod {
+    private static String TAG = CallMethod.class.getSimpleName();
     public static final int METHOD_OK = 0;  //调用成功
     public static final int ERROR_METHOD_NOT_FIND = 2;  //逻辑方法不存在
     public static final int ERROR_PARAMS_INVALID = 22;  //params不合法，非法json或者缺少必需字段
@@ -30,7 +31,7 @@ public class CallMethod {
             object.put("name", program_code);
             object.put("program", program_info);
             json = object.toString();
-            Log.i("luna", "program params json string: " + json);
+            Log.i(TAG, "program params json string: " + json);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -44,7 +45,7 @@ public class CallMethod {
             object.put("instance", instance);
             object.put("name", program_code);
             json = object.toString();
-            Log.i("luna", "program params json string: " + json);
+            Log.i(TAG, "program params json string: " + json);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -135,7 +136,6 @@ public class CallMethod {
             object.put("internal_seek", internal_seek);
             object.put("dest_moment", dest_moment);
             json = object.toString();
-            Log.d("CALL", "json: " + json.toString());
         } catch (JSONException e) {
             e.printStackTrace();
         }

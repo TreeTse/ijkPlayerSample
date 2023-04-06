@@ -126,6 +126,7 @@ public class InfoHudViewHolder {
                     int curAudioTrack = -1;
                     IjkTrackInfo trackInfo[] = null;
                     int audioTrackSize = 0;
+                    long bitRate = 0;
                     if (mMediaPlayer == null)
                         break;
                     if (mMediaPlayer instanceof IjkMediaPlayer) {
@@ -140,6 +141,9 @@ public class InfoHudViewHolder {
                             if(trackInfo[i].getTrackType() == ITrackInfo.MEDIA_TRACK_TYPE_AUDIO)
                                 audioTrackSize++;
                         }
+                        bitRate = ijkMp.getBitRate();
+                        String format = mp.getMediaInfo().mMeta.mFormat;
+                        setRowValue(R.string.format, format);
                         //mp = (IjkMediaPlayer) mMediaPlayer;
                     }
                     if (mMediaPlayer instanceof MediaPlayerProxy) {
@@ -183,8 +187,8 @@ public class InfoHudViewHolder {
                     long videoCachedBytes    = mp.getVideoCachedBytes();
                     long audioCachedBytes    = mp.getAudioCachedBytes();
                     long tcpSpeed            = mp.getTcpSpeed();
-                    /*long bitRate             = mp.getBitRate();
-                    long seekLoadDuration    = mp.getSeekLoadDuration();*/
+                    long bitRate             = mp.getBitRate();*/
+                    //long seekLoadDuration    = mp.getSeekLoadDuration();
                     String playerName        = mp.getMediaInfo().mMediaPlayerName;
                     long duration            = 0;
                     if(mIsPrepared == true) {
@@ -197,15 +201,15 @@ public class InfoHudViewHolder {
                     setRowValue(R.string.a_cache, String.format(Locale.US, "%s, %s", formatedDurationMilli(audioCachedDuration), formatedSize(audioCachedBytes)));
                     setRowValue(R.string.load_cost, String.format(Locale.US, "%d ms", mLoadCost));
                     setRowValue(R.string.seek_cost, String.format(Locale.US, "%d ms", mSeekCost));
-                    setRowValue(R.string.seek_load_cost, String.format(Locale.US, "%d ms", seekLoadDuration));
-                    setRowValue(R.string.tcp_speed, String.format(Locale.US, "%s", formatedSpeed(tcpSpeed, 1000)));
-                    setRowValue(R.string.bit_rate, String.format(Locale.US, "%.2f kbs", bitRate/1000f));*/
+                    setRowValue(R.string.seek_load_cost, String.format(Locale.US, "%d ms", seekLoadDuration));*/
+                    setRowValue(R.string.bit_rate, String.format(Locale.US, "%.2f kbs", bitRate/1000f));
                     setRowValue(R.string.player_name,String.format(Locale.US, "%s", playerName));
                     setRowValue(R.string.duration,String.format(Locale.US, "%d/%d s", curDuration/1000, duration/1000));
                     setRowValue(R.string.load_cost, String.format(Locale.US, "%d ms", mLoadCost));
                     setRowValue(R.string.fps, String.format(Locale.US, "%s / %s", fpsDecode, fpsOutput));
-                    setRowValue(R.string.all_audio_track, String.format(Locale.US, "%d", audioTrackSize));
-                    setRowValue(R.string.audio_track, String.format(Locale.US, "%d", curAudioTrack));
+                    setRowValue(R.string.audio_track, String.format(Locale.US, "%d/%d", curAudioTrack, audioTrackSize));
+                    String rangerEvent = "键7：切上个节目 键9：切下个节目\n键4：向左seek 键6：向右seek";//add: ranger log
+                    setRowValue(R.string.ranger_keyevent, String.format(Locale.US, "%s", rangerEvent));
 
                     mHandler.removeMessages(MSG_UPDATE_HUD);
                     mHandler.sendEmptyMessageDelayed(MSG_UPDATE_HUD, 500);

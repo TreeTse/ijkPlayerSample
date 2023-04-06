@@ -24,8 +24,9 @@
     <string name="bit_rate">bit_rate</string>
     <string name="player_name">player_name</string>
     <string name="duration">duration</string>
-    <string name="audio_track">current audio track</string>>
-    <string name="all_audio_track">all audio track</string>>
+    <string name="audio_track">audio track</string>
+    <string name="ranger_keyevent">操作说明</string>
+    <string name="format">format</string>
 
     <string name="media_information">Media Information</string>
     <string name="mi_player">Player</string>

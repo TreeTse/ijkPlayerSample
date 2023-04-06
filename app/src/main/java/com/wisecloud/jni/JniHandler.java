@@ -16,6 +16,7 @@ public class JniHandler {
 
     private String Callback(String action, String params) {
         RangerResult result = new RangerResult(0, "");
+        Gson gson = new Gson();
         Log.i(TAG, "Callback res, action: " + action + ", params: " + params);
         switch (action) {
             case "OnPlayEvent":
@@ -26,7 +27,6 @@ public class JniHandler {
                         String event = jsonObject.getString("event");
                         String play_info = jsonObject.getString("play_info");
                         long err = jsonObject.getLong("err");
-                        Gson gson = new Gson();
                         PlayInfo playInfo = gson.fromJson(play_info, PlayInfo.class);
                         result = onPlayEvent(instance, event, playInfo, err);
                     } catch (JSONException e) {
@@ -45,7 +45,6 @@ public class JniHandler {
                         String operation = jsonObject.getString("operation");
                         String play_info = jsonObject.getString("play_info");
                         long data = jsonObject.getLong("data");
-                        Gson gson = new Gson();
                         PlayInfo playInfo = gson.fromJson(play_info, PlayInfo.class);
                         result = askPlayer(instance, operation, playInfo, data);
                     } catch (JSONException e) {
@@ -109,7 +108,6 @@ public class JniHandler {
                 result.setErr(CallMethod.ERROR_METHOD_NOT_FIND);
                 break;
         }
-        Gson gson = new Gson();
         return gson.toJson(result);
     }
 

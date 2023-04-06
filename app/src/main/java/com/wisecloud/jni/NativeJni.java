@@ -8,6 +8,11 @@ import com.google.gson.Gson;
 import tv.danmaku.ijk.media.example.application.BaseApp;
 
 public class NativeJni {
+
+    static {
+        System.loadLibrary("ranger-jni");
+    }
+
     private final String TAG = NativeJni.class.getSimpleName();
 
     public static NativeJni mNativeJni;
@@ -32,7 +37,8 @@ public class NativeJni {
         InitRanger();
     }
 
-    private void release() {
+    //Todo
+    public void release() {
         threadHandler.removeCallbacksAndMessages(null);
         handlerThread.quit();
         threadHandler = null;
@@ -53,10 +59,10 @@ public class NativeJni {
         }
         threadHandler.post(() -> {
             String lunaPath = BaseApp.getContext().getDir("luna", Context.MODE_PRIVATE).getAbsolutePath();
-            Log.i(TAG, "Ranger work path: " + lunaPath);
+            Log.d(TAG, "Ranger work path: " + lunaPath);
             String paramStr = "{\"work_path\":\"" + lunaPath + "\"}";
             String retStr = CallWrapper("InitRanger", paramStr);
-            Log.i(TAG, "InitRanger retStr: " + retStr);
+            Log.d(TAG, "InitRanger retStr: " + retStr);
         });
     }
 
@@ -65,7 +71,7 @@ public class NativeJni {
             String result = CallWrapper("GetVersion", "");
             Gson gson = new Gson();
             String version = gson.fromJson(result, RangerResult.class).getRes();
-            Log.i(TAG, "GetVersion: " + version);
+            Log.d(TAG, "GetVersion: " + version);
         });
     }
 
@@ -73,7 +79,7 @@ public class NativeJni {
         threadHandler.post(() -> {
             String params = CallMethod.getConfigParams(configJson);
             String status = CallWrapper("SetConfig", params);
-            Log.i(TAG, "SetConfig status: " + status);
+            Log.d(TAG, "SetConfig status: " + status);
         });
     }
 
@@ -81,7 +87,7 @@ public class NativeJni {
         threadHandler.post(() -> {
             String params = CallMethod.getProgramParams(instance, program_code, program_info);
             String status = CallWrapper("PrepareProgram", params);
-            Log.i(TAG, "PrepareProgram status: " + status);
+            Log.d(TAG, "PrepareProgram status: " + status);
         });
     }
 
@@ -89,8 +95,9 @@ public class NativeJni {
         threadHandler.post(() -> {
             String params = CallMethod.getSeekProgramParams(instance, program_code, dest_moment * 1000000L, curr_moment * 1000000L, internal_seek);
             String status = CallWrapper("SeekProgram", params);
-            Log.i(TAG, "SeekProgram status: " + status);
-            rangerStrCallback.callback("");
+            Log.d(TAG, "SeekProgram status: " + status);
+            if(rangerStrCallback != null)
+                rangerStrCallback.callback("");
         });
     }
 
@@ -98,7 +105,7 @@ public class NativeJni {
         threadHandler.post(() -> {
             String params = CallMethod.getProgramParams(instance, program_code, program_info);
             String status = CallWrapper("UpdateProgram", params);
-            Log.i(TAG, "UpdateProgram status: " + status);
+            Log.d(TAG, "UpdateProgram status: " + status + "; instance: " + instance + "; program_code: " + program_code);
         });
     }
 
@@ -106,7 +113,7 @@ public class NativeJni {
         threadHandler.post(() -> {
             String params = CallMethod.getProgramParams(instance, program_code);
             String status = CallWrapper("PauseProgram", params);
-            Log.i(TAG, "PauseProgram status: " + status);
+            Log.d(TAG, "PauseProgram status: " + status);
         });
     }
 
@@ -114,7 +121,7 @@ public class NativeJni {
         threadHandler.post(() -> {
             String params = CallMethod.getProgramParams(instance, program_code);
             String status = CallWrapper("StopProgram", params);
-            Log.i(TAG, "StopProgram status: " + status);
+            Log.d(TAG, "StopProgram status: " + status + "; program_code: " + program_code);
         });
     }
 
@@ -122,7 +129,7 @@ public class NativeJni {
         threadHandler.post(() -> {
             String params = CallMethod.getProgramParams(instance, program_code);
             String ret = CallWrapper("GetProgram", params);
-            Log.i(TAG, "GetProgram status: " + ret);
+            Log.d(TAG, "GetProgram status: " + ret);
             Gson gson = new Gson();
             RangerResult result = gson.fromJson(ret, RangerResult.class);
             PlayInfo playInfo = gson.fromJson(result.getRes(), PlayInfo.class);
@@ -152,7 +159,7 @@ public class NativeJni {
         threadHandler.post(() -> {
             String params = CallMethod.getSwitchProgramLangParams(instance, program_code, lang);
             String status = CallWrapper("SwitchProgramLang", params);
-            Log.i(TAG, "SwitchProgramLang status: " + status);
+            Log.d(TAG, "SwitchProgramLang status: " + status);
         });
     }
 
@@ -160,7 +167,7 @@ public class NativeJni {
         threadHandler.post(() -> {
             String params = CallMethod.getSwitchProgramQualityParams(instance, program_code, quality);
             String status = CallWrapper("SwitchProgramQuality", params);
-            Log.i(TAG, "SwitchProgramQuality status: " + status);
+            Log.d(TAG, "SwitchProgramQuality status: " + status);
         });
     }
 
@@ -168,7 +175,7 @@ public class NativeJni {
         threadHandler.post(() -> {
             String params = CallMethod.getProgramParams(instance, program_code);
             String status = CallWrapper("ResumeProgram", params);
-            Log.i(TAG, "ResumeProgram status:" + status);
+            Log.d(TAG, "ResumeProgram status:" + status);
         });
     }
 
