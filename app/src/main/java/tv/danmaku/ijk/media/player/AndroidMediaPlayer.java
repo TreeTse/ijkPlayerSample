@@ -212,6 +212,11 @@ public class AndroidMediaPlayer extends AbstractMediaPlayer {
     }
 
     @Override
+    public long getBufferPosition() {//add
+        return 0;
+    }
+
+    @Override
     public boolean isPlaying() {
         try {
             return mInternalMediaPlayer.isPlaying();

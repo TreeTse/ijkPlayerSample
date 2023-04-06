@@ -411,4 +411,9 @@ public class IjkExoMediaPlayer extends AbstractMediaPlayer {
 
     public void selectTrack(int track) { }
     public int getSelectedTrack(int trackType) { return -1; }
+
+    @Override
+    public long getBufferPosition() {//add
+        return 0;
+    }
 }

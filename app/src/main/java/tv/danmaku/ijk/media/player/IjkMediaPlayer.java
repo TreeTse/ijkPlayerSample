@@ -50,6 +50,7 @@ import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Map;
+
 import tv.danmaku.ijk.media.player.annotations.AccessedByNative;
 import tv.danmaku.ijk.media.player.annotations.CalledByNative;
 import tv.danmaku.ijk.media.player.misc.IAndroidIO;
@@ -166,6 +167,7 @@ public final class IjkMediaPlayer extends AbstractMediaPlayer {
     private int mVideoSarDen;
 
     private String mDataSource;
+    private long mBufferPosition;//add: instruct buffer pos
 
     /**
      * Default library loader
@@ -188,7 +190,6 @@ public final class IjkMediaPlayer extends AbstractMediaPlayer {
                 libLoader.loadLibrary("ijkffmpeg");
                 //libLoader.loadLibrary("ijksdl");
                 libLoader.loadLibrary("ijkplayer");
-                libLoader.loadLibrary("ranger-jni");
                 mIsLibLoaded = true;
             }
         }
@@ -668,6 +669,9 @@ public final class IjkMediaPlayer extends AbstractMediaPlayer {
     }
 
     @Override
+    public long getBufferPosition() { return mBufferPosition; }//add: instruct buffer pos
+
+    @Override
     public native boolean isPlaying();
 
     @Override
@@ -714,6 +718,7 @@ public final class IjkMediaPlayer extends AbstractMediaPlayer {
 
         mVideoWidth = 0;
         mVideoHeight = 0;
+        mBufferPosition = 0;//add: instruct buffer pos
     }
 
     private native void _reset();
@@ -989,6 +994,7 @@ public final class IjkMediaPlayer extends AbstractMediaPlayer {
                 if (bufferPosition < 0) {
                     bufferPosition = 0;
                 }
+                player.mBufferPosition = bufferPosition;//add: instruct buffer pos
 
                 long percent = 0;
                 long duration = player.getDuration();

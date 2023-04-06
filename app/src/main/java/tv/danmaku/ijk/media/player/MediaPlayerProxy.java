@@ -320,6 +320,11 @@ public class MediaPlayerProxy implements IMediaPlayer {
     }
 
     @Override
+    public long getBufferPosition() {//add
+        return 0;
+    }
+
+    @Override
     public void setWakeMode(Context context, int mode) {
         mBackEndMediaPlayer.setWakeMode(context, mode);
     }

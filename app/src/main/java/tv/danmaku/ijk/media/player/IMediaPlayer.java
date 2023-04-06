@@ -191,6 +191,8 @@ public interface IMediaPlayer {
 
     int getVideoSarDen();
 
+    long getBufferPosition();//add
+
     @Deprecated
     void setWakeMode(Context context, int mode);
 
