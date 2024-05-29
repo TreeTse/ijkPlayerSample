@@ -26,7 +26,6 @@
 #include <pthread.h>
 #include <jni.h>
 #include <unistd.h>
-#include <time.h>
 #include "j4a/class/java/util/ArrayList.h"
 #include "j4a/class/android/os/Bundle.h"
 #include "j4a/class/tv/danmaku/ijk/media/player/IjkMediaPlayer.h"
@@ -1204,7 +1203,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved)
 
     FFmpegApi_global_init(env);
 
-    SDL_JNI_OnLoad(vm,reserved);
+    SDL_JNI_OnLoad(vm,reserved); // add SDL_JNI_OnLoad
 
     return JNI_VERSION_1_4;
 }

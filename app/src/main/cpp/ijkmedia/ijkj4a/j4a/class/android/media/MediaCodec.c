@@ -39,7 +39,7 @@ typedef struct J4AC_android_media_MediaCodec {
     jmethodID method_configure;
     jmethodID method_getOutputFormat;
     jmethodID method_getInputBuffers;
-    jmethodID method_getOutputBuffer;
+    jmethodID method_getOutputBuffer; // add getOutputBuffer
     jmethodID method_dequeueInputBuffer;
     jmethodID method_queueInputBuffer;
     jmethodID method_dequeueOutputBuffer;

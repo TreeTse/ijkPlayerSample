@@ -21,7 +21,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <fcntl.h>
 #include "ffpipenode_android_mediacodec_vdec.h"
 #include "ijksdl/android/ijksdl_android_jni.h"
 #include "ijksdl/android/ijksdl_codec_android_mediaformat_java.h"
@@ -36,7 +35,6 @@
 #include "hevc_nal.h"
 #include "mpeg4_esds.h"
 #include "ffpipeline_android.h"
-#include "libyuv.h"
 
 #define AMC_USE_AVBITSTREAM_FILTER 0
 #ifndef AMCTRACE
@@ -323,7 +321,7 @@ static int reconfigure_codec_l(JNIEnv *env, IJKFF_Pipenode *node, jobject new_su
         assert(opaque->weak_vout);
     }
 
-    //if buffer output is used,the surface should set null
+    //if get outputBuffer, the surface should be null
     amc_ret = SDL_AMediaCodec_configure_surface(env, opaque->acodec, opaque->input_aformat, opaque->jsurface, NULL, 0);
     if (amc_ret != SDL_AMEDIA_OK) {
         ALOGE("%s:configure_surface: failed\n", __func__);
@@ -1079,77 +1077,7 @@ static void sort_amc_buf_out(AMC_Buf_Out *buf_out, int size) {
     }
 }
 
-int saveRgbFile(uint8_t* yuv_buf, int width, int height, int index) {
-    int fd = -1;
-    int ret;
-    char argb_file_path[50];
-    sprintf(argb_file_path, "/storage/emulated/0/frametmp/hwframe%d.argb", index);
-    
-    #if 0   //read yuv data from yuv file
-    int y_buf_size = width * height;
-    uint8_t* y_buf = (uint8_t*)malloc(y_buf_size);
-    ret = read(fd, y_buf, y_buf_size);
-    if (ret != y_buf_size) {
-        av_log(NULL, AV_LOG_ERROR, "failed to read y data.\n");
-        return -1;
-    }
-    int u_buf_size = width * height / 4;
-    uint8_t *u_buf = (uint8_t*)malloc(u_buf_size);
-    ret = read(fd, u_buf, u_buf_size);
-    if (ret != u_buf_size)
-    {
-        av_log(NULL, AV_LOG_ERROR, "failed to read u data.\n");
-        /*struct stat buf;
-        ret = fstat(fd, &buf);
-        av_log(NULL, AV_LOG_ERROR, "stat file size: %lld, err: %d\n", buf.st_size, ret);*/
-        return -1;
-    }
-    int v_buf_size = width * height / 4;
-    uint8_t *v_buf = (uint8_t*)malloc(v_buf_size);
-    ret = read(fd, v_buf, v_buf_size);
-    if (ret != v_buf_size)
-    {
-        av_log(NULL, AV_LOG_ERROR, "failed to read v data.\n");
-        return -1;
-    }
-
-    if(close(fd) == -1) {
-        av_log(NULL, AV_LOG_ERROR, "filed to close yuv file. error = %d, reason = %s\n", errno, strerror(errno));
-    }
-    #endif
-
-    int argb_size = width * height * 4;
-    uint8_t* argb_buf = (uint8_t*)malloc(argb_size * sizeof(uint8_t));
-    //ret = NV21ToARGB(y_buf, width, vu_buf, width, argb_buf, width * 4, width, height);
-    ret = I420ToARGB(yuv_buf, width, yuv_buf + width * height, width / 2, yuv_buf + width * height * 5 / 4, width / 2, argb_buf, width * 4, width, height);
-    if (ret != 0){
-        av_log(NULL, AV_LOG_INFO, "failed to NV21ToARGB. %d\n", ret);
-        return -1;
-    }
-
-    fd = open(argb_file_path, O_RDWR | O_TRUNC | O_CREAT, 0600);
-    if (fd < 0)
-    {
-        av_log(NULL, AV_LOG_ERROR, "failed to create argb file.\n");
-        return -1;
-    }
-
-    ret = write(fd, argb_buf, argb_size);
-    if (ret < 0)
-    {
-        av_log(NULL, AV_LOG_ERROR, "failed to write argb to file. %d error = %d, reason = %s\n", ret, errno, strerror(errno));
-        return -1;
-    }
-
-    free(argb_buf);
-
-    if(close(fd) == -1) {
-        av_log(NULL, AV_LOG_ERROR, "filed to close argb file. error = %d, reason = %s\n", errno, strerror(errno));
-    }
-    av_log(NULL, AV_LOG_INFO, "convert success.\n");
-}
-
-static int drain_output_buffer_l(JNIEnv *env, IJKFF_Pipenode *node, int64_t timeUs, int *dequeue_count, AVFrame *frame, int *got_frame, int index)
+static int drain_output_buffer_l(JNIEnv *env, IJKFF_Pipenode *node, int64_t timeUs, int *dequeue_count, AVFrame *frame, int *got_frame)
 {
     IJKFF_Pipenode_Opaque *opaque   = node->opaque;
     FFPlayer              *ffp      = opaque->ffp;
@@ -1310,48 +1238,6 @@ static int drain_output_buffer_l(JNIEnv *env, IJKFF_Pipenode *node, int64_t time
                 }
             }
         } else {
-            if(index == -1) {
-                uint8_t *buf = opaque->acodec->func_getOutputBuffer(opaque->acodec, output_buffer_index);
-                if(buf == NULL) {
-                    av_log(NULL, AV_LOG_ERROR, "mediacodec getOutputBuffer error!\n");
-                }
-                if(buf != NULL) {
-                    opaque->output_aformat = SDL_AMediaCodec_getOutputFormat(opaque->acodec);
-                    int width        = 0;
-                    int height       = 0;
-                    int color_format = 0;
-                    int yuv_size     = 0;
-                    if(opaque->output_aformat) {
-                        SDL_AMediaFormat_getInt32(opaque->output_aformat, "width",          &width);
-                        SDL_AMediaFormat_getInt32(opaque->output_aformat, "height",         &height);
-                        SDL_AMediaFormat_getInt32(opaque->output_aformat, "color-format",   &color_format);
-                        av_log(NULL, AV_LOG_INFO, "width : %d\n", width);
-                        av_log(NULL, AV_LOG_INFO, "height : %d\n", height);
-                        av_log(NULL, AV_LOG_INFO, "format : %s\n", SDL_AMediaCodec_getColorFormatName(color_format));
-                    } else {
-                        av_log(NULL, AV_LOG_ERROR, "AMediaCodec_getOutputFormat return null!\n");
-                    } 
-                    if(width!=0 & height!=0) {
-                        #if 0   //save to yuv
-                        yuv_size = width * height * 3 / 2;
-                        FILE *pFile;
-                        char filename[50];
-                        sprintf(filename, "/storage/emulated/0/frametmp/hwframe%d.yuv", index);
-                        pFile = fopen(filename, "wb+");
-                        if (pFile == NULL) {
-                            av_log(NULL, AV_LOG_ERROR, "pFile is null! errno = %d, reason = %s\n", errno, strerror(errno));
-                            return -1;
-                        }
-                        fwrite(buf, 1, yuv_size, pFile);
-                        fclose(pFile);
-                        av_log(NULL, AV_LOG_INFO, "write hwframe finished\n");
-                        #endif
-                        #if 1  //save to argb
-                        saveRgbFile(buf, width, height, index);
-                        #endif
-                    }
-                }
-            }
             ret = amc_fill_frame(node, frame, got_frame, output_buffer_index, SDL_AMediaCodec_getSerial(opaque->acodec), &bufferInfo);
         }
     }
@@ -1506,7 +1392,7 @@ static int drain_output_buffer2_l(JNIEnv *env, IJKFF_Pipenode *node, int64_t tim
     return 0;
 }
 
-static int drain_output_buffer(JNIEnv *env, IJKFF_Pipenode *node, int64_t timeUs, int *dequeue_count, AVFrame *frame, int *got_frame, int index)
+static int drain_output_buffer(JNIEnv *env, IJKFF_Pipenode *node, int64_t timeUs, int *dequeue_count, AVFrame *frame, int *got_frame)
 {
     IJKFF_Pipenode_Opaque *opaque = node->opaque;
     SDL_LockMutex(opaque->acodec_mutex);
@@ -1517,7 +1403,7 @@ static int drain_output_buffer(JNIEnv *env, IJKFF_Pipenode *node, int64_t timeUs
         SDL_CondWaitTimeout(opaque->acodec_cond, opaque->acodec_mutex, 100);
     }
 
-    int ret = drain_output_buffer_l(env, node, timeUs, dequeue_count, frame, got_frame, index);
+    int ret = drain_output_buffer_l(env, node, timeUs, dequeue_count, frame, got_frame);
     SDL_UnlockMutex(opaque->acodec_mutex);
     return ret;
 }
@@ -1710,12 +1596,10 @@ static int func_run_sync(IJKFF_Pipenode *node)
         ret = -1;
         goto fail;
     }
-    int index = 0;
     while (!q->abort_request) {
         int64_t timeUs = opaque->acodec_first_dequeue_output_request ? 0 : AMC_OUTPUT_TIMEOUT_US;
         got_frame = 0;
-        index++;
-        ret = drain_output_buffer(env, node, timeUs, &dequeue_count, frame, &got_frame, index);
+        ret = drain_output_buffer(env, node, timeUs, &dequeue_count, frame, &got_frame);
         if (opaque->acodec_first_dequeue_output_request) {
             SDL_LockMutex(opaque->acodec_first_dequeue_output_mutex);
             opaque->acodec_first_dequeue_output_request = false;

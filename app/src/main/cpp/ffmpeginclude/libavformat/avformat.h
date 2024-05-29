@@ -1867,6 +1867,11 @@ typedef struct AVFormatContext {
      * - decoding: set by user
      */
     int max_probe_packets;
+
+    /**
+     * Indicate whether to seek, only for hls.
+     */
+    int is_seek;
 } AVFormatContext;
 
 #if FF_API_FORMAT_GET_SET

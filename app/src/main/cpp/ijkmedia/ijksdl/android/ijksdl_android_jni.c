@@ -195,7 +195,7 @@ int SDL_Android_GetApiLevel()
 #endif
 }
 
-
+// modify: JNI_OnLoad -> SDL_JNI_OnLoad
 JNIEXPORT jint JNICALL SDL_JNI_OnLoad(JavaVM *vm, void *reserved)
 {
     int retval;

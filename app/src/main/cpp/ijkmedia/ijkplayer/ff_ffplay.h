@@ -51,7 +51,6 @@ void     *ffp_set_inject_opaque(FFPlayer *ffp, void *opaque);
 void     *ffp_set_ijkio_inject_opaque(FFPlayer *ffp, void *opaque);
 void      ffp_set_option(FFPlayer *ffp, int opt_category, const char *name, const char *value);
 void      ffp_set_option_int(FFPlayer *ffp, int opt_category, const char *name, int64_t value);
-void      ffp_set_option_intptr(FFPlayer *ffp, int opt_category, const char *name, uintptr_t value);
 
 int       ffp_get_video_codec_info(FFPlayer *ffp, char **codec_info);
 int       ffp_get_audio_codec_info(FFPlayer *ffp, char **codec_info);
@@ -81,7 +80,6 @@ void      ffp_packet_queue_start(PacketQueue *q);
 void      ffp_packet_queue_flush(PacketQueue *q);
 int       ffp_packet_queue_get(PacketQueue *q, AVPacket *pkt, int block, int *serial);
 int       ffp_packet_queue_get_or_buffering(FFPlayer *ffp, PacketQueue *q, AVPacket *pkt, int *serial, int *finished);
-int       ffp_packet_queue_del(PacketQueue *q);
 int       ffp_packet_queue_put(PacketQueue *q, AVPacket *pkt);
 bool      ffp_is_flush_packet(AVPacket *pkt);
 
@@ -111,7 +109,6 @@ void      ffp_set_playback_rate(FFPlayer *ffp, float rate);
 void      ffp_set_playback_volume(FFPlayer *ffp, float volume);
 int       ffp_get_video_rotate_degrees(FFPlayer *ffp);
 int       ffp_set_stream_selected(FFPlayer *ffp, int stream, int selected);
-void      audio_track_switch(VideoState *is, int stream);
 
 float     ffp_get_property_float(FFPlayer *ffp, int id, float default_value);
 void      ffp_set_property_float(FFPlayer *ffp, int id, float value);
