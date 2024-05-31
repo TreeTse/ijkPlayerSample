@@ -26,8 +26,8 @@ import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build;
-import android.support.annotation.NonNull;
-import android.support.v7.app.AlertDialog;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -49,7 +49,6 @@ import java.util.Locale;
 import java.util.Map;
 
 
-import tv.danmaku.ijk.media.exo.IjkExoMediaPlayer;
 import tv.danmaku.ijk.media.player.AndroidMediaPlayer;
 import tv.danmaku.ijk.media.player.IMediaPlayer;
 import tv.danmaku.ijk.media.player.IjkMediaPlayer;
@@ -1082,8 +1081,8 @@ public class IjkVideoView extends FrameLayout implements IJKMediaController.Medi
 
         switch (playerType) {
             case Settings.PV_PLAYER__IjkExoMediaPlayer: {
-                IjkExoMediaPlayer IjkExoMediaPlayer = new IjkExoMediaPlayer(mAppContext);
-                mediaPlayer = IjkExoMediaPlayer;
+//                IjkExoMediaPlayer IjkExoMediaPlayer = new IjkExoMediaPlayer(mAppContext);
+//                mediaPlayer = IjkExoMediaPlayer;
             }
             break;
             case Settings.PV_PLAYER__AndroidMediaPlayer: {

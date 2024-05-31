@@ -10,7 +10,6 @@ import android.widget.TableLayout;
 
 import java.util.Locale;
 
-import tv.danmaku.ijk.media.exo.IjkExoMediaPlayer;
 import tv.danmaku.ijk.media.player.AndroidMediaPlayer;
 import tv.danmaku.ijk.media.player.IMediaPlayer;
 import tv.danmaku.ijk.media.player.IjkMediaPlayer;
@@ -125,7 +124,6 @@ public class InfoHudViewHolder {
                     IMediaPlayer mp = null;
                     IjkMediaPlayer ijkMp = null;
                     AndroidMediaPlayer androidMp = null;
-                    IjkExoMediaPlayer exoMp = null;
                     String decoder = "";
                     String fpsOutput = "";
                     String fpsDecode = "";
@@ -159,10 +157,6 @@ public class InfoHudViewHolder {
                         androidMp = (AndroidMediaPlayer) mMediaPlayer;
                         mp = androidMp;
                         decoder = androidMp.getMediaInfo().mVideoDecoder + androidMp.getMediaInfo().mVideoDecoderImpl;
-                    } else if(mMediaPlayer instanceof IjkExoMediaPlayer) {
-                        exoMp = (IjkExoMediaPlayer) mMediaPlayer;
-                        mp = exoMp;
-                        decoder = exoMp.getMediaInfo().mVideoDecoderImpl;
                     }
                     if (mp == null)
                         break;
