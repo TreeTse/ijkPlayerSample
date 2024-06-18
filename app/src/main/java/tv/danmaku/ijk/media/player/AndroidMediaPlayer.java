@@ -295,8 +295,6 @@ public class AndroidMediaPlayer extends AbstractMediaPlayer {
             module.mVideoDecoder = "android";
             module.mVideoDecoderImpl = "HW";
 
-            module.mMediaPlayerName = "androidMediaPlayer";
-
             module.mAudioDecoder = "android";
             module.mAudioDecoderImpl = "HW";
 
@@ -436,7 +434,4 @@ public class AndroidMediaPlayer extends AbstractMediaPlayer {
             notifyOnTimedText(ijkText);
         }
     }
-
-    public void selectTrack(int track) { }
-    public int getSelectedTrack(int trackType) { return -1; }
 }

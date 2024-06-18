@@ -3,89 +3,104 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    android:background="#363737"
+    tools:context=".ui.MainActivity">
 
     <TextView
-        android:id="@+id/tv1"
-        android:textColor="#000000"
+        android:id="@+id/mHint"
+        android:textColor="#FBFBFB"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginLeft="5dp"
         android:layout_marginTop="12dp"
         android:padding="2dp"
-        android:text="url : "
+        android:textSize="13sp"
+        android:text="文件播放URL "
         />
     <EditText
-        android:id="@+id/player_url"
+        android:id="@+id/mPlayUrl"
         android:layout_width="wrap_content"
-        android:layout_height="40dp"
-        android:layout_toRightOf="@id/tv1"
-        android:layout_toLeftOf="@id/btn_play"
+        android:layout_height="30dp"
+        android:layout_toRightOf="@id/mHint"
+        android:layout_toLeftOf="@id/mStartPlay"
+        android:layout_marginTop="5dp"
+        android:hint="请输入播放地址"
+        android:textColorHint="#a8a8a8"
+        android:background="@drawable/bg_input_light"
         android:singleLine="false"
-        android:hint="请输入地址"
         android:inputType="textUri"
         android:textSize="12sp"
+        android:textColor="@color/white"
         />
 
     <Button
-        android:id="@+id/btn_play"
+        android:id="@+id/mStartPlay"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_toLeftOf="@id/btn_clear"
-        android:text="播放" />
+        android:layout_height="35dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginTop="4dp"
+        android:layout_toLeftOf="@id/mClearUrl"
+        android:layout_marginRight="10dp"
+        android:textColor="#FBFBFB"
+        android:textSize="15sp"
+        android:background="@drawable/selector_dialog_button"
+        android:text="播放"
+        android:nextFocusDown="@id/mIjkPlayer"/>
+
     <Button
+        android:id="@+id/mClearUrl"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="清除内容"
-        android:id="@+id/btn_clear"
+        android:layout_height="35dp"
+        android:layout_alignBottom="@id/mStartPlay"
         android:layout_alignParentRight="true"
-        android:layout_alignBottom="@id/btn_play"
-        />
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:padding="2dp"
-        android:id="@+id/tv2"
-        android:layout_marginTop="20dp"
-        android:layout_below="@id/btn_play"
-        android:textColor="#000000"
-        android:text="Enable Ijk Video Hwaccel : "
-        />
-    <Switch
-        android:id="@+id/hw_switch"
-        android:checked="true"
-        android:layout_toRightOf="@id/tv2"
-        android:layout_below="@id/btn_play"
-        android:layout_marginTop="18dp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        />
+        android:layout_marginRight="10dp"
+        android:background="@drawable/selector_dialog_button"
+        android:nextFocusRight="@id/mIjkPlayer"
+        android:text="清除内容"
+        android:textColor="#FBFBFB"
+        android:textSize="15sp"
+        android:nextFocusDown="@id/mIjkPlayer"/>
 
     <RadioGroup
-        android:id="@+id/rgPlay"
+        android:id="@+id/mPlayerType"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_below="@id/hw_switch"
+        android:layout_below="@id/mStartPlay"
         android:layout_marginTop="18dp"
         >
         <RadioButton
-            android:id="@+id/rb1"
+            android:id="@+id/mIjkPlayer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:checked="true"
-            android:text="ijkMediaPlayer" />
+            android:textColor="@color/text_impression_color"
+            android:textSize="13sp"
+            android:text="ijkPlayer" />
         <RadioButton
-            android:id="@+id/rb2"
+            android:id="@+id/mMediaPlayer"
             android:layout_marginLeft="10dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="AndroidMediaPlayer" />
+            android:textColor="@color/text_impression_color"
+            android:textSize="13sp"
+            android:text="MediaPlayer" />
         <RadioButton
-            android:id="@+id/rb3"
+            android:id="@+id/mExoPlayer"
             android:layout_marginLeft="10dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="IjkExoMediaPlayer" />
+            android:textColor="@color/text_impression_color"
+            android:textSize="13sp"
+            android:text="ExoPlayer" />
+        <RadioButton
+            android:id="@+id/mSoftDecoder"
+            android:layout_marginLeft="10dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_impression_color"
+            android:textSize="13sp"
+            android:text="ijkSoftDecoder" />
     </RadioGroup>
 
 </RelativeLayout>

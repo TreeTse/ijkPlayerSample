@@ -155,7 +155,7 @@ public interface IMediaPlayer {
     }
 
     interface OnBufferingUpdateListener {
-        void onBufferingUpdate(IMediaPlayer mp, int percent);
+        void onBufferingUpdate(IMediaPlayer mp, int percent, long bufferPosition);
     }
 
     interface OnSeekCompleteListener {
@@ -212,7 +212,4 @@ public interface IMediaPlayer {
      * AndroidMediaPlayer: M:
      */
     void setDataSource(IMediaDataSource mediaDataSource);
-
-    void selectTrack(int track);
-    int getSelectedTrack(int trackType);
 }

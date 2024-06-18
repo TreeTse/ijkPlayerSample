@@ -1001,7 +1001,7 @@ public final class IjkMediaPlayer extends AbstractMediaPlayer {
                 }
 
                 // DebugLog.efmt(TAG, "Buffer (%d%%) %d/%d",  percent, bufferPosition, duration);
-                player.notifyOnBufferingUpdate((int)percent);
+                player.notifyOnBufferingUpdate((int)percent, bufferPosition);
                 return;
 
             case MEDIA_SEEK_COMPLETE:
