@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@color/black"
+    android:orientation="vertical" >
+
+    <TextView
+        android:id="@+id/mVolumeValue"
+        android:layout_width="25dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:paddingLeft="3dp"
+        android:paddingRight="3dp"
+        android:singleLine="true"
+        android:text="100"
+        android:textColor="@android:color/white"
+        android:textSize="10sp" />
+
+    <com.example.ijk.widget.VolumeSeekBar
+        android:id="@+id/mVolumeSeekBar"
+        android:layout_width="32dp"
+        android:layout_height="100dp"
+        android:maxHeight="5dp"
+        android:minHeight="5dp"
+        android:layout_gravity="center_horizontal"
+        android:thumb="@drawable/ic_play_thumb"
+        android:progressDrawable="@drawable/pg_volume_seekbar"
+        android:max="200"
+        android:progress="100" />
+
+
+</LinearLayout>

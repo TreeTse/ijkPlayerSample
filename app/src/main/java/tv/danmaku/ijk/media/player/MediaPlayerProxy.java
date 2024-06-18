@@ -21,10 +21,8 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Build;
-import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
-import android.widget.TextView;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -216,8 +214,8 @@ public class MediaPlayerProxy implements IMediaPlayer {
             final OnBufferingUpdateListener finalListener = listener;
             mBackEndMediaPlayer.setOnBufferingUpdateListener(new OnBufferingUpdateListener() {
                 @Override
-                public void onBufferingUpdate(IMediaPlayer mp, int percent) {
-                    finalListener.onBufferingUpdate(MediaPlayerProxy.this, percent);
+                public void onBufferingUpdate(IMediaPlayer mp, int percent, long bufferPosition) {
+                    finalListener.onBufferingUpdate(MediaPlayerProxy.this, percent, bufferPosition);
                 }
             });
         } else {
@@ -339,7 +337,4 @@ public class MediaPlayerProxy implements IMediaPlayer {
     public boolean isLooping() {
         return mBackEndMediaPlayer.isLooping();
     }
-
-    public void selectTrack(int track) { }
-    public int getSelectedTrack(int trackType) { return -1; }
 }
