@@ -323,7 +323,6 @@ public class IjkVideoView extends FrameLayout {
             mCurrentBufferPercentage = 0;
             String scheme = mUri.getScheme();
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                    /*mSettings.getUsingMediaDataSource() &&*/
                     (TextUtils.isEmpty(scheme) || scheme.equalsIgnoreCase("file"))) {
                 IMediaDataSource dataSource = new FileMediaDataSource(new File(mUri.toString()));
                 mMediaPlayer.setDataSource(dataSource);
@@ -874,7 +873,7 @@ public class IjkVideoView extends FrameLayout {
     }
 
     public IMediaPlayer createPlayer(PlayerEnum playerType) {
-        IMediaPlayer mediaPlayer = null;
+        IMediaPlayer mediaPlayer;
 
         switch (playerType) {
             case EXO: {
@@ -939,7 +938,7 @@ public class IjkVideoView extends FrameLayout {
         builder.appendRow2(R.string.mi_resolution, buildResolution(mVideoWidth, mVideoHeight, mVideoSarNum, mVideoSarDen));
         builder.appendRow2(R.string.mi_length, buildTimeMilli(mMediaPlayer.getDuration()));
 
-        ITrackInfo trackInfos[] = mMediaPlayer.getTrackInfo();
+        ITrackInfo[] trackInfos = mMediaPlayer.getTrackInfo();
         if (trackInfos != null) {
             int index = -1;
             for (ITrackInfo trackInfo : trackInfos) {

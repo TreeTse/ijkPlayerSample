@@ -208,7 +208,7 @@ public class ExoMediaPlayer extends AbstractMediaPlayer {
 
     @Override
     public void setDataSource(Context context, Uri uri, Map<String, String> headers) throws IOException, IllegalArgumentException, SecurityException, IllegalStateException {
-
+        setDataSource(context, uri);
     }
 
     @Override

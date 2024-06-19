@@ -650,8 +650,7 @@ public class VideoActivity extends AppCompatActivity {
             mVideoView.setOnBufferingUpdateListener(mBufferingUpdateListener);
             mVideoView.setOnInfoListener(mInfoListener);
             mVideoView.setPlayerCallback(mPlayerListener);
-            mVideoView.setVideoURI(Uri.parse(mVideoPath));
-            mVideoView.setIsUsingMediaCodec(isUsingMediaCodec);
+
             mVideoView.selectPlayer(mPlayerType);
             mPlayerAdapter.updateSelectedIndex(indexLoaderByPlayerType.get(mPlayerType));
             tvPlayerType.setText(mPlayerType.name());
