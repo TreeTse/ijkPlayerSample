@@ -3199,6 +3199,11 @@ static int read_thread(void *arg)
         goto fail;
     }
 
+    if (ffp->audio_language) {
+        av_log(NULL, AV_LOG_DEBUG, "setting audio language: %s\n", ffp->audio_language);
+    } else {
+        av_log(NULL, AV_LOG_DEBUG, "no setting audio language\n");
+    }
     memset(st_index, -1, sizeof(st_index));
     is->last_video_stream = is->video_stream = -1;
     is->last_audio_stream = is->audio_stream = -1;
@@ -3338,6 +3343,18 @@ static int read_thread(void *arg)
             if (avformat_match_stream_specifier(ic, st, ffp->wanted_stream_spec[type]) > 0)
                 st_index[type] = i;
 
+        if (type == AVMEDIA_TYPE_AUDIO) {
+            AVDictionaryEntry *lang = av_dict_get(st->metadata, "language", NULL, 0);
+            if (lang && ffp->audio_language && strlen(ffp->audio_language) > 0){
+                if (av_strncasecmp(lang->value, ffp->audio_language, 3) == 0) {
+                    st_index[AVMEDIA_TYPE_AUDIO] = i;
+                } else if (6 == strlen(ffp->audio_language)) {
+                    if (av_strncasecmp(lang->value, ffp->audio_language+3, 3) == 0) {
+                        st_index[AVMEDIA_TYPE_AUDIO] = i;
+                    }
+                }
+            }
+        }
         // choose first h264
 
         if (type == AVMEDIA_TYPE_VIDEO) {
@@ -3384,6 +3401,7 @@ static int read_thread(void *arg)
     }
 #endif
 
+    av_log(NULL, AV_LOG_DEBUG, "st_index_audio:%d ",st_index[AVMEDIA_TYPE_AUDIO]);
     /* open the streams */
     if (st_index[AVMEDIA_TYPE_AUDIO] >= 0) {
         stream_component_open(ffp, st_index[AVMEDIA_TYPE_AUDIO]);
