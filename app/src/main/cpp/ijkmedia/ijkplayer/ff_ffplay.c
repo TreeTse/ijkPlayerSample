@@ -3507,6 +3507,9 @@ static int read_thread(void *arg)
 
             ffp_toggle_buffering(ffp, 1);
             ffp_notify_msg3(ffp, FFP_MSG_BUFFERING_UPDATE, 0, 0);
+            if (!strncmp(ffp->input_filename, "http", 4) && (strstr(ffp->input_filename, ".m3u") == NULL)) {
+                is->seek_flags |= AVSEEK_FLAG_BACKWARD;
+            }
             ret = avformat_seek_file(is->ic, -1, seek_min, seek_target, seek_max, is->seek_flags);
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR,
