@@ -2025,6 +2025,11 @@ IJKFF_Pipenode *ffpipenode_create_video_decoder_from_android_mediacodec(FFPlayer
         opaque->mcc.profile = opaque->codecpar->profile >= 0 ? opaque->codecpar->profile : 0;
         opaque->mcc.level   = opaque->codecpar->level >= 0 ? opaque->codecpar->level : 1;
         break;
+    case AV_CODEC_ID_AV1:
+        strcpy(opaque->mcc.mime_type, SDL_AMIME_VIDEO_AV1);
+        opaque->mcc.profile = opaque->codecpar->profile;
+        opaque->mcc.level   = opaque->codecpar->level;
+        break;
 
     default:
         ALOGE("%s:create: not H264 or H265/HEVC, codec_id:%d \n", __func__, opaque->codecpar->codec_id);
