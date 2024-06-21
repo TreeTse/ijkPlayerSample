@@ -4982,6 +4982,10 @@ int ffp_set_stream_selected(FFPlayer *ffp, int stream, int selected)
     codecpar = ic->streams[stream]->codecpar;
 
     if (selected) {
+        if (stream == is->video_stream || stream == is->audio_stream || stream == is->subtitle_stream) {
+            av_log(ffp, AV_LOG_ERROR, "stream has been selected\n");
+            return 0;
+        }
         switch (codecpar->codec_type) {
             case AVMEDIA_TYPE_VIDEO:
                 if (stream != is->video_stream && is->video_stream >= 0)
