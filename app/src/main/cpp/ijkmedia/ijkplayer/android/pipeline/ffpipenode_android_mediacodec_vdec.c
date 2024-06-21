@@ -950,6 +950,11 @@ static int feed_input_buffer(JNIEnv *env, IJKFF_Pipenode *node, int64_t timeUs, 
 #endif
 
         queue_flags = 0;
+        if (opaque->acodec == NULL) {
+            ALOGE("SDL_AMediaCodec_dequeueInputBuffer acodec is null");
+            ret = 0;
+            goto fail;
+        }
         input_buffer_index = SDL_AMediaCodec_dequeueInputBuffer(opaque->acodec, timeUs);
         if (input_buffer_index < 0) {
             if (SDL_AMediaCodec_isInputBuffersValid(opaque->acodec)) {
@@ -981,6 +986,11 @@ static int feed_input_buffer(JNIEnv *env, IJKFF_Pipenode *node, int64_t timeUs, 
             time_stamp = 0;
         }
         // ALOGE("queueInputBuffer, %lld\n", time_stamp);
+        if (opaque->acodec == NULL) {
+            ALOGE("SDL_AMediaCodec_queueInputBuffer acodec is null");
+            ret = 0;
+            goto fail;
+        }
         amc_ret = SDL_AMediaCodec_queueInputBuffer(opaque->acodec, input_buffer_index, 0, copy_size, time_stamp, queue_flags);
         if (amc_ret != SDL_AMEDIA_OK) {
             ALOGE("%s: SDL_AMediaCodec_getInputBuffer failed\n", __func__);
@@ -1093,6 +1103,11 @@ static int drain_output_buffer_l(JNIEnv *env, IJKFF_Pipenode *node, int64_t time
         goto fail;
     }
 
+    if (opaque->acodec == NULL) {
+        ALOGE("SDL_AMediaCodecFake_dequeueOutputBuffer acodec is null");
+        ret = 0;
+        goto fail;
+    }
     output_buffer_index = SDL_AMediaCodecFake_dequeueOutputBuffer(opaque->acodec, &bufferInfo, timeUs);
     if (output_buffer_index == AMEDIACODEC__INFO_OUTPUT_BUFFERS_CHANGED) {
         ALOGI("AMEDIACODEC__INFO_OUTPUT_BUFFERS_CHANGED\n");
