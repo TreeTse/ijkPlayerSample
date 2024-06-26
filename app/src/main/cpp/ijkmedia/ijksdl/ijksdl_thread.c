@@ -89,8 +89,11 @@ void SDL_WaitThread(SDL_Thread *thread, int *status)
     assert(thread);
     if (!thread)
         return;
+    if (thread->id == 0)
+        return;
 
     pthread_join(thread->id, NULL);
+    thread->id = 0;
 
     if (status)
         *status = thread->retval;
