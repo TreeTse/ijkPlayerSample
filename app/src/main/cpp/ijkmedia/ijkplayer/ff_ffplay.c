@@ -1169,15 +1169,16 @@ static void check_external_clock_speed(VideoState *is) {
 /* seek in the stream */
 static void stream_seek(VideoState *is, int64_t pos, int64_t rel, int seek_by_bytes)
 {
-    if (!is->seek_req) {
+    //if (!is->seek_req) {
         is->seek_pos = pos;
         is->seek_rel = rel;
         is->seek_flags &= ~AVSEEK_FLAG_BYTE;
         if (seek_by_bytes)
             is->seek_flags |= AVSEEK_FLAG_BYTE;
         is->seek_req = 1;
+        is->ic->is_seek = 1;
         SDL_CondSignal(is->continue_read_thread);
-    }
+    //}
 }
 
 /* pause or resume the video */
@@ -3517,6 +3518,7 @@ static int read_thread(void *arg)
                 is->seek_flags |= AVSEEK_FLAG_BACKWARD;
             }
             ret = avformat_seek_file(is->ic, -1, seek_min, seek_target, seek_max, is->seek_flags);
+            is->ic->is_seek = 0;
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR,
                        "%s: error while seeking\n", is->ic->filename);
