@@ -208,6 +208,8 @@ static const AVOption ffp_context_options[] = {
         OPTION_OFFSET(render_wait_start),      OPTION_INT(0, 0, 1) },
     { "audio_language",             "default audio language ",
         OPTION_OFFSET(audio_language),         OPTION_STR(NULL) },
+    { "max-buffer-audio-tracks",         "the max numbers of audio tracks can be buffered",
+        OPTION_OFFSET(max_buffer_audio_tracks),    OPTION_INT(1, 1, 4) },
 
     { NULL }
 };

@@ -272,6 +272,13 @@ typedef struct Decoder {
     int    first_frame_decoded;
 } Decoder;
 
+typedef struct AudioTrack {
+    PacketQueue audioq;
+    int audio_stream;
+    AVStream *audio_st;
+    Decoder auddec;
+} AudioTrack;
+
 typedef struct VideoState {
     SDL_Thread *read_tid;
     SDL_Thread _read_tid;
@@ -418,6 +425,8 @@ typedef struct VideoState {
     SDL_cond  *audio_accurate_seek_cond;
     volatile int initialized_decoder;
     int seek_buffering;
+    struct AudioTrack *audio_added;
+    int nb_audio_buffer_stream;
 } VideoState;
 
 /* options specified by the user */
@@ -721,6 +730,7 @@ typedef struct FFPlayer {
     int ijkmeta_delay_init;
     int render_wait_start;
     char *audio_language;
+    int max_buffer_audio_tracks;
 } FFPlayer;
 
 #define fftime_to_milliseconds(ts) (av_rescale(ts, 1000, AV_TIME_BASE))
@@ -833,6 +843,7 @@ inline static void ffp_reset_internal(FFPlayer *ffp)
     ffp->render_wait_start              = 0;
 
     ffp->audio_language                 = NULL;
+    ffp->max_buffer_audio_tracks        = 1;
 
     ijkmeta_reset(ffp->meta);
 
